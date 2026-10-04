@@ -139,6 +139,22 @@ def save_label(image_id: str, tag_key: str, value: int, labeler: str) -> None:
     _db_call(db.upsert, "labels", [row], on_conflict="image_id,tag_key,labeler")
 
 
+def save_labels(image_id: str, values: dict[str, int], labeler: str) -> None:
+    """이미지 한 장의 여러 태그 라벨을 한 번에 저장. 같은 (image_id, tag_key, labeler)는 덮어쓴다.
+
+    여러 행을 한 번의 요청으로 보내므로 DB에서 하나의 INSERT ... ON CONFLICT 문으로 실행된다 → 전부 저장되거나 전부 실패.
+    """
+    if not values:
+        return
+    if not labeler.strip():
+        raise TagError("이름이 비어 있습니다.")
+    now = _now()
+    rows = [{"image_id": str(image_id), "tag_key": key, "value": int(v), "labeler": labeler, "updated_at": now}
+            for key, v in values.items()]
+    _db_call(lambda: db.get_client().table("labels")
+             .upsert(rows, on_conflict="image_id,tag_key,labeler", returning="minimal").execute())
+
+
 def load_labels_csv(path=LABELS_CSV) -> pd.DataFrame:
     """예전 로컬 CSV 라벨 (DB 이전용)."""
     if not path.exists():

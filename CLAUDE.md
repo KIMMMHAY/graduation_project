@@ -33,7 +33,9 @@ streamlit run app.py
 | `methods/` | 검색 방식 모듈. `SearchMethod` + 기능 믹스인(`ImageSearch`/`PairFinder`/`TagSource`), `METHOD_CLASSES`에 등록하면 해당 페이지에 자동 노출 |
 | `core/dataset.py` | `metadata.csv` + `images/` 로딩(`read_metadata`는 순수 함수, `load_metadata`는 캐시 버전), 썸네일 |
 | `core/db.py` | Supabase 클라이언트, `fetch_all`/`upsert`, `friendly_error`(한국어 오류) |
-| `core/tagging.py` | 팀 태그(`tags`)·라벨(`labels`) DB 입출력, 예측 CSV |
+| `core/tagging.py` | 팀 태그(`tags`)·라벨(`labels`) DB 입출력, 예측 CSV. `save_labels()`는 이미지 한 장의 여러 태그를 한 번의 요청으로 저장(전부 저장 또는 전부 실패) |
+| `core/image_labeling.py` | 이미지별 라벨링 규칙: 체크=1·해제=0·보류=저장 안 함, 끝낸 이미지 = 사용 중 태그 전부에 내 라벨이 있음 (순수 함수) |
+| `views/labeling.py` | 라벨링 방식 전환. `labeling_by_image.py`(기본, 체크박스 한 번에) / `labeling_by_tag.py`(기존 화면을 함수로 감싼 것 — 동작 변경 금지) |
 | `core/pose.py` | 포즈 관절 정의·정규화·매칭 (순수 numpy, Streamlit/DB 의존 없음) |
 | `core/poses.py` | `poses`·`pose_evals` DB 입출력 |
 | `core/pose_models.py` | 사전학습 포즈 모델 → 13관절 변환(COCO·MediaPipe 매핑, 신뢰도 → 상태, 방향 추정) |
@@ -55,6 +57,9 @@ streamlit run app.py
 - `st.cache_resource`/`st.cache_data` 함수의 인자 이름을 `_`로 시작하면 캐시 키에서 빠진다. 모듈 리로드 대비는 `methods/__init__.py`의 클래스 id 키 참고.
 - 무거운 계산 결과(Phash, 임베딩)는 `drawing_ref_test/cache/` 등에 파일로 캐시한다.
 - `st.components.v2` 컴포넌트 키에는 `__`를 쓸 수 없다. 작성자 이름처럼 임의 문자가 들어가는 키는 해시로 바꾼다(`components/pose_editor.py`).
+- 위젯 키에 대상 ID와 '저장 상태 요약값'을 넣어, 대상이 바뀌거나 저장 직후 다시 열 때 위젯이 새로 초기화되게 한다(라벨링 체크박스, 포즈 편집기 공통).
+- 체크할 때마다 즉시 바뀌어야 하는 안내가 있는 입력 영역은 `st.form` 대신 `@st.fragment`로 감싼다(그 영역만 다시 그림, DB 재조회 없음).
+- 화면에 그리지 않은 위젯의 값은 Streamlit이 지운다. 화면 전환 후에도 유지해야 하는 값은 `views/labeling.py`처럼 매 실행 시 다시 넣어 둔다.
 - v2 컴포넌트는 같은 키로 다시 그려질 때 JS 함수가 다시 호출된다. 편집 중 상태는 `data.version`이 같으면 유지하고, 바꾸려면 version을 바꾼다.
 - 좌표는 이미지 크기에 대한 0~1 비율로 저장하고, 각도 계산 전에는 반드시 가로세로 비율을 보정한다.
 - 포즈의 좌우는 **캐릭터 기준**(캐릭터의 왼팔 = `l_`). 화면에 안내 문구를 항상 표시한다.
@@ -62,6 +67,9 @@ streamlit run app.py
 ## 데이터 안전 (중요)
 
 - `SUPABASE.env`/`.env`의 키 값은 **절대 출력하지 않는다.** 키 종류 확인이 필요하면 접두사(`sb_secret_`/`sb_publishable_`)만 본다.
+- 태그를 새로 만들어야 하는 테스트는 key `zz_test_*` + 이름 `[테스트] ...`로 만들고, fixture에서 **시작 전·종료 시(실패해도)** 정리한다.
+  임시 태그의 라벨을 먼저 지워야 태그가 지워진다(`labels.tag_key`는 외래키 restrict). 예: `tests/e2e/test_labeling_image_app.py`
+- 학습을 실행하는 테스트는 `training`의 결과 경로(MODELS_DIR, REPORT_CSV, PRED_CSV, 임베딩 캐시)를 임시 폴더로 바꿔서 이 PC의 결과 파일을 덮어쓰지 않는다.
 - `poses`의 `source='model'` 행(annotator = 모델 이름: `dwpose`, `mediapipe-heavy`)은 모델 결과다. 사람 데이터와 섞어 지우지 말 것. 사람 라벨은 `manual`/`model_corrected`.
 - 테스트는 실제 팀 데이터를 건드리지 않는다. DB에 쓰는 테스트는 작성자/라벨러 이름 `__test__`를 쓰고 끝나면 그 행만 지운다.
 - `drawing_ref_test/eval_phash.csv`, DB의 `labels`·`poses`·`pose_evals`는 팀이 직접 만든 데이터다. 덮어쓰기·삭제 전에 반드시 확인한다.
