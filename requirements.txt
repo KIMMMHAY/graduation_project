@@ -14,3 +14,9 @@ torch==2.14.1
 torchvision==0.29.1
 supabase==2.32.0
 python-dotenv==1.2.4
+# 포즈 AI 제안 (DWPose 계열, CPU). rtmlib이 opencv-python과 opencv-contrib-python을 함께 요구한다(같은 버전이면 문제없음)
+rtmlib==0.0.16
+onnxruntime==1.30.0
+opencv-python==5.0.0.93
+opencv-contrib-python==5.0.0.93
+# mediapipe는 넣지 않는다 (numpy·OpenCV 충돌). 비교가 필요하면 tools/mediapipe_predict.py 안내대로 별도 가상환경에서

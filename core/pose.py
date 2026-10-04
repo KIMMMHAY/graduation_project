@@ -109,7 +109,10 @@ def validate_keypoints(keypoints) -> list[dict]:
         state = k.get("state", VISIBLE)
         if state not in STATES:
             raise PoseError(f"{JOINTS[i][1]} 상태 '{state}'는 쓸 수 없습니다.")
-        out.append({"x": round(min(max(x, 0.0), 1.0), 4), "y": round(min(max(y, 0.0), 1.0), 4), "state": state})
+        item = {"x": round(min(max(x, 0.0), 1.0), 4), "y": round(min(max(y, 0.0), 1.0), 4), "state": state}
+        if k.get("conf") is not None:  # 모델 추정값의 관절별 신뢰도 (정확도 리포트에서 기준값 조정용)
+            item["conf"] = round(float(k["conf"]), 3)
+        out.append(item)
     return out
 
 
@@ -211,6 +214,29 @@ def search(query: list[dict], query_aspect: float, candidates: list[Candidate], 
         if m is not None and (c.image_id not in best or m.score > best[c.image_id].match.score):
             best[c.image_id] = SearchHit(c, m)
     return sorted(best.values(), key=lambda h: -h.match.score)[:top_k]
+
+
+PCK_THRESHOLD = 0.2  # 몸통 길이의 20% 이내면 정답
+
+
+def joint_errors(truth: list[dict], pred: list[dict], aspect: float) -> tuple[np.ndarray, np.ndarray] | None:
+    """사람이 확정한 포즈(truth) 대비 모델 추정(pred)의 관절별 오차 (몸통 길이 단위, 가로세로 비율 보정).
+
+    반환: (오차 13개, 판정 13개). 판정: 1=정답(PCK), 0=오답 또는 모델이 '없음'으로 냄, nan=비교 제외(사람이 '없음').
+    오차는 둘 다 위치가 있는 관절만 값이 있고 나머지는 nan. 사람 포즈의 몸통을 알 수 없으면 None.
+    """
+    tp, tw = _points(truth, aspect)
+    pp, pw = _points(pred, aspect)
+    if tw[SHOULDER_MID] == 0 or tw[HIP_MID] == 0:
+        return None
+    torso = np.linalg.norm(tp[SHOULDER_MID] - tp[HIP_MID])
+    if torso < 1e-6:
+        return None
+    err = np.linalg.norm(tp[:N_JOINTS] - pp[:N_JOINTS], axis=1) / torso
+    has_truth, has_pred = tw[:N_JOINTS] > 0, pw[:N_JOINTS] > 0
+    errors = np.where(has_truth & has_pred, err, np.nan)
+    correct = np.where(has_truth, (has_pred & (err <= PCK_THRESHOLD)).astype(float), np.nan)
+    return errors, correct
 
 
 def normalize(keypoints: list[dict], aspect: float) -> np.ndarray | None:

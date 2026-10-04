@@ -38,11 +38,22 @@ def save_pose(image_id: str, annotator: str, keypoints: list[dict], facing: str 
         raise P.PoseError(f"상태 '{status}'는 쓸 수 없습니다.")
     if facing is not None and facing not in P.FACINGS:
         raise P.PoseError(f"방향 '{facing}'은 쓸 수 없습니다.")
-    if status == P.DONE and facing is None:
+    if status == P.DONE and facing is None and source != P.MODEL:  # AI는 방향을 못 정할 수도 있다
         raise P.PoseError("완료하려면 몸이 향한 방향(정면/측면/뒷모습)을 골라 주세요.")
     row = {"image_id": str(image_id), "person_index": person_index, "annotator": annotator, "source": source,
            "facing": facing, "keypoints": P.validate_keypoints(keypoints), "status": status, "updated_at": _now()}
     db.call(db.upsert, "poses", [row], on_conflict="image_id,person_index,annotator")
+
+
+def model_poses(model_name: str | None = None, df: pd.DataFrame | None = None) -> pd.DataFrame:
+    """모델 추정 결과 (source='model'). model_name이 없으면 모든 모델."""
+    df = load_poses() if df is None else df
+    df = df[df["source"] == P.MODEL]
+    return df if model_name is None else df[df["annotator"] == model_name]
+
+
+def load_image_ids() -> list[str]:
+    return [r["id"] for r in db.call(db.fetch_all, "images", "id")]
 
 
 def searchable_candidates(aspects: dict[str, float]) -> list[P.Candidate]:

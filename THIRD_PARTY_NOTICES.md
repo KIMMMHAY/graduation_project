@@ -29,6 +29,10 @@
 | torchvision | 0.29.1 | BSD-3-Clause |
 | supabase | 2.32.0 | MIT |
 | python-dotenv | 1.2.4 | BSD-3-Clause |
+| rtmlib | 0.0.16 | Apache-2.0 |
+| onnxruntime | 1.30.0 | MIT |
+| opencv-python / opencv-contrib-python | 5.0.0.93 | Apache-2.0 |
+| mediapipe (비교용, 별도 가상환경에서만) | 1.0.1 | Apache-2.0 |
 | pytest (개발용) | 9.1.1 | MIT |
 | playwright (개발용) | 1.63.0 | Apache-2.0 |
 
@@ -37,6 +41,9 @@
 | 모델 | 출처 | 라이선스 |
 | --- | --- | --- |
 | CLIP ViT-B-32 `laion2b_s34b_b79k` | LAION / OpenCLIP (Hugging Face `laion/CLIP-ViT-B-32-laion2B-s34B-b79K`) | MIT |
+| RTMW-dw-x-l (`rtmw-dw-x-l_simcc-cocktail14`, 관절 추정) | OpenMMLab RTMPose / DWPose (rtmlib가 내려받음) | Apache-2.0 |
+| YOLOX-m Human-Art (`yolox_m_8xb8-300e_humanart`, 인물 검출) | OpenMMLab, Human-Art 데이터셋으로 학습 | 코드·가중치 Apache-2.0. **⚠️ 학습 데이터(Human-Art)의 이용 조건은 아직 확인하지 못함 — MVP 외부 공개 전 확인 필요** |
+| MediaPipe Pose Landmarker heavy (비교용) | Google MediaPipe | Apache-2.0 |
 
 ## 데이터
 

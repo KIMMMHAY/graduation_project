@@ -110,6 +110,29 @@ def pin_center(page, idx):
     return b["x"] + b["width"] / 2, b["y"] + b["height"] / 2
 
 
+def wait_pins_at(page, keypoints, joints=("l_shoulder", "r_hip", "l_knee"), timeout=30.0, tol=0.01):
+    """핀이 주어진 위치로 그려질 때까지 기다린다 (재실행 후 편집기가 새로 만들어지는 시간)."""
+    deadline = time.time() + timeout
+    while True:
+        try:
+            box = image_box(page)
+            ok = all(abs((pin_center(page, P.J[k])[0] - box["x"]) / box["w"] - keypoints[P.J[k]]["x"]) <= tol and
+                     abs((pin_center(page, P.J[k])[1] - box["y"]) / box["h"] - keypoints[P.J[k]]["y"]) <= tol
+                     for k in joints)
+        except Exception:
+            ok = False
+        if ok:
+            return
+        if time.time() > deadline:
+            raise AssertionError(f"핀이 기대한 위치에 오지 않았습니다: {joints}")
+        page.wait_for_timeout(300)
+
+
+def reset_to_default(page):
+    page.get_by_role("button", name="↺ 초기화 (표준 자세로)").click()
+    wait_pins_at(page, P.default_pose())
+
+
 def my_poses():
     return db.get_client().table("poses").select("*").eq("annotator", TEST_USER).execute().data
 
@@ -117,6 +140,7 @@ def my_poses():
 def test_label_save_and_restore(server, browser):
     page = open_page(browser, server + "/pose_label")
     wait_editor(page)
+    reset_to_default(page)  # AI 제안 핀이 있으면 그걸로 시작하므로, 위치를 아는 표준 자세에서 출발한다
     idx = P.J["l_wrist"]
     box = image_box(page)
     x, y = pin_center(page, idx)

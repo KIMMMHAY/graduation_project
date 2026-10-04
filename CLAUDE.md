@@ -14,6 +14,8 @@ streamlit run app.py
 ```
 
 - 단독 스크립트: `python training.py`(자동 태깅 학습), `python migrate_to_supabase.py`(로컬 데이터 → DB), `python check_supabase.py`(DB 연결 테스트)
+- 포즈: `python predict_poses.py`(DWPose 미리 계산, 아직 없는 이미지만, 500장 약 25분), `python predict_poses.py --import x.json`(별도 환경 결과 가져오기), `python export_coco.py`(사람이 확정한 포즈 → COCO)
+- MediaPipe는 팀 환경에 넣지 않는다(numpy·OpenCV 충돌). 비교용은 `tools/mediapipe_predict.py` 상단 안내대로 별도 가상환경에서 실행
 - 테스트: `python -m pytest tests`
   - `tests/test_pose.py`: 매칭 단위 테스트 (DB·브라우저 불필요)
   - `tests/e2e/test_pin_editor.py`: 핀 편집기를 Chromium에서 직접 검증 (Streamlit·DB 불필요)
@@ -32,6 +34,9 @@ streamlit run app.py
 | `core/tagging.py` | 팀 태그(`tags`)·라벨(`labels`) DB 입출력, 예측 CSV |
 | `core/pose.py` | 포즈 관절 정의·정규화·매칭 (순수 numpy, Streamlit/DB 의존 없음) |
 | `core/poses.py` | `poses`·`pose_evals` DB 입출력 |
+| `core/pose_models.py` | 사전학습 포즈 모델 → 13관절 변환(COCO·MediaPipe 매핑, 신뢰도 → 상태, 방향 추정) |
+| `core/pose_predict.py` | 모델 추정 실행·저장 (웹 '바로 추정'·'미리 계산'과 CLI 공용) |
+| `core/pose_accuracy.py` | 모델 vs 사람 정확도(관절별 오차, PCK@0.2, 검출률) — 순수 pandas |
 | `web/` | **Streamlit에 의존하지 않는** 프론트엔드 모듈(순수 ES 모듈). MVP 화면으로 옮길 수 있게 유지 |
 | `components/` | `web/` 모듈을 Streamlit에 붙이는 얇은 어댑터(`st.components.v2`) |
 | `supabase/schema.sql` | DB 스키마 전체. 여러 번 실행해도 안전해야 함(`if not exists`, 정책 존재 확인) |
@@ -53,6 +58,7 @@ streamlit run app.py
 ## 데이터 안전 (중요)
 
 - `SUPABASE.env`/`.env`의 키 값은 **절대 출력하지 않는다.** 키 종류 확인이 필요하면 접두사(`sb_secret_`/`sb_publishable_`)만 본다.
+- `poses`의 `source='model'` 행(annotator = 모델 이름: `dwpose`, `mediapipe-heavy`)은 모델 결과다. 사람 데이터와 섞어 지우지 말 것. 사람 라벨은 `manual`/`model_corrected`.
 - 테스트는 실제 팀 데이터를 건드리지 않는다. DB에 쓰는 테스트는 작성자/라벨러 이름 `__test__`를 쓰고 끝나면 그 행만 지운다.
 - `drawing_ref_test/eval_phash.csv`, DB의 `labels`·`poses`·`pose_evals`는 팀이 직접 만든 데이터다. 덮어쓰기·삭제 전에 반드시 확인한다.
 - secret 키(`service_role`)는 RLS를 무시한다. 팀원에게는 publishable 키를 나눠준다.
