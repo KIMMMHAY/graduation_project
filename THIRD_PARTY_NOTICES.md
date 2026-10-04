@@ -10,7 +10,11 @@
 
 ## 저장소에 포함한 코드
 
-(단계 3에서 three.js를 `third_party/three/`에 포함할 예정)
+| 프로젝트 | 버전 | 라이선스 | 위치 |
+| --- | --- | --- | --- |
+| [three.js](https://github.com/mrdoob/three.js) — Copyright © 2010-2026 three.js authors | 0.186.1 | MIT | 코드: `static/vendor/three/three.module.js`, `three.core.js` (**수정하지 않은 원본**). 라이선스 원문: `third_party/three/LICENSE`, `static/vendor/three/LICENSE`. 출처·해시: `third_party/three/README.md` |
+
+3D 마네킹(`web/mannequin/mannequin.js`)은 three.js 위에 직접 작성했습니다. 관절을 구 위에서 끌어 뼈를 회전시키는 조작 아이디어만 pose-search를 참고했습니다.
 
 ## Python 패키지 (pip로 설치, 저장소에 포함하지 않음)
 

@@ -18,6 +18,7 @@ pages = {
     "포즈": [
         st.Page("views/pose_label.py", title="포즈 라벨링", icon="🦴"),
         st.Page("views/pose_search.py", title="포즈 검색 (2D)", icon="🔎"),
+        st.Page("views/pose_search_3d.py", title="포즈 검색 (3D)", icon="🧍"),
         st.Page("views/pose_accuracy.py", title="포즈 정확도", icon="📏"),
     ],
 }

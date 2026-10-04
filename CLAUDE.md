@@ -19,7 +19,9 @@ streamlit run app.py
 - 테스트: `python -m pytest tests`
   - `tests/test_pose.py`: 매칭 단위 테스트 (DB·브라우저 불필요)
   - `tests/e2e/test_pin_editor.py`: 핀 편집기를 Chromium에서 직접 검증 (Streamlit·DB 불필요)
-  - `tests/e2e/test_pose_app.py`: 실제 서버 + 브라우저 + Supabase 전체 흐름. 테이블이 없으면 자동으로 건너뜀
+  - `tests/e2e/test_pose_app.py`, `test_pose_step2_app.py`, `test_pose_3d_app.py`: 실제 서버 + 브라우저 + Supabase 전체 흐름. 테이블이 없으면 자동으로 건너뜀
+  - `tests/e2e/test_mannequin.py`: 마네킹을 Streamlit 없이 검증. 외부 네트워크 요청이 하나라도 있으면 실패(오프라인 보장)
+  - Streamlit 화면 E2E에서 결과를 읽을 때는 고정 대기 대신 "바뀐 상태"가 화면에 나타나거나 사라질 때까지 기다린다 (재실행 전 DOM을 읽는 실수 방지)
   - 기존 페이지 확인은 `AppTest`로 **화면만 그려 볼 것**. 평가 버튼을 누르는 스모크 테스트는 실제 `eval_phash.csv`에 기록하므로 돌리지 않는다
 
 ## 구조
@@ -39,6 +41,8 @@ streamlit run app.py
 | `core/pose_accuracy.py` | 모델 vs 사람 정확도(관절별 오차, PCK@0.2, 검출률) — 순수 pandas |
 | `web/` | **Streamlit에 의존하지 않는** 프론트엔드 모듈(순수 ES 모듈). MVP 화면으로 옮길 수 있게 유지 |
 | `components/` | `web/` 모듈을 Streamlit에 붙이는 얇은 어댑터(`st.components.v2`) |
+| `web/mannequin/` | 3D 마네킹(three.js를 생성자로 받음 → 번들러·로컬·CDN 어디서나). `demo.html`은 Streamlit 없이 쓰는 예시 |
+| `static/vendor/three/` | three.js 0.186.1 원본(수정 금지). `.streamlit/config.toml`의 `enableStaticServing`으로 `/app/static/`에서 제공 → 오프라인 동작 |
 | `supabase/schema.sql` | DB 스키마 전체. 여러 번 실행해도 안전해야 함(`if not exists`, 정책 존재 확인) |
 | `third_party/` | 프로젝트에 포함한 외부 코드와 라이선스 원문 |
 | `drawing_ref_test/` | 로컬 데이터(이미지, 캐시, 모델). **Git 제외** |

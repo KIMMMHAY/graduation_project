@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- 3D 마네킹 단독 실행 예시 (Streamlit 없이). 프로젝트 폴더에서 `python -m http.server` 후
+     http://localhost:8000/web/mannequin/demo.html 로 연다. MVP 화면으로 옮길 때의 사용법 예시이기도 하다. -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>3D 마네킹 데모</title>
+  <style>body { font-family: sans-serif; margin: 16px; } #host { width: 640px; max-width: 100%; } pre { font-size: 12px; }</style>
+</head>
+<body>
+  <div id="host"></div>
+  <pre id="out"></pre>
+  <script type="module">
+    import * as THREE from '/static/vendor/three/three.module.js';
+    import { Mannequin, MANNEQUIN_CSS } from './mannequin.js';
+    const style = document.createElement('style');
+    style.textContent = MANNEQUIN_CSS;
+    document.head.appendChild(style);
+    const show = (s) => { document.getElementById('out').textContent = JSON.stringify({ facing: s.facing, keypoints: s.keypoints }, null, 1); };
+    window.mq = new Mannequin(document.getElementById('host'), { THREE, height: 520, onChange: show });
+    show(window.mq.snapshot());
+    window.ready = true;
+  </script>
+</body>
+</html>

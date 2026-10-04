@@ -1,0 +1,3 @@
+[server]
+# static/ 폴더를 /app/static/ 경로로 제공한다 (3D 마네킹이 three.js를 오프라인으로 불러오기 위해)
+enableStaticServing = true
