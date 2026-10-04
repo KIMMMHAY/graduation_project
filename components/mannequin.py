@@ -31,6 +31,11 @@ def _renderer():
 
 def mannequin(*, key: str, version: str, height: int = 560, state: dict | None = None) -> dict | None:
     """마네킹을 그리고 현재 투영 결과를 돌려준다: {keypoints, aspect, facing, state}. 아직 준비 전이면 None."""
+    if not st.get_option("server.enableStaticServing"):
+        # 설정은 서버를 켤 때만 읽힌다. 설정 파일이 생기기 전에 켠 서버면 three.js를 불러올 수 없다
+        st.error("3D 마네킹을 불러올 수 없습니다. 앱을 **다시 시작**해 주세요: 터미널에서 `Ctrl+C`로 끈 뒤 "
+                 "프로젝트 폴더에서 `streamlit run app.py`. (프로젝트 폴더의 `.streamlit/config.toml`이 필요합니다)")
+        return None
     data = {"version": version, "height": height, "state": state, "three_url": THREE_URL}
     safe_key = "mannequin_" + hashlib.md5(key.encode("utf-8")).hexdigest()  # v2 키에는 '__'를 쓸 수 없다
     result = _renderer()(key=safe_key, data=data, on_pose_change=lambda: None)

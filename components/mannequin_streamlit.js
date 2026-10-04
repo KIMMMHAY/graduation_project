@@ -19,7 +19,16 @@ export default async function (component) {
   host.__mq?.destroy();
   host.__mq = null;
 
-  const THREE = await import(new URL(data.three_url, document.baseURI).href);
+  let THREE;
+  try {
+    THREE = await import(new URL(data.three_url, document.baseURI).href);
+  } catch (e) {
+    host.__version = null;  // 다음 재실행 때 다시 시도
+    host.innerHTML = '<div style="padding:12px;border-radius:8px;background:#fee2e2;color:#991b1b;font-size:14px">'
+      + '3D 마네킹(three.js)을 불러오지 못했습니다. 앱을 다시 시작해 주세요: 터미널에서 Ctrl+C 후 '
+      + '프로젝트 폴더에서 <code>streamlit run app.py</code></div>';
+    return;
+  }
   if (host.__version !== data.version) return;  // 불러오는 사이에 다른 버전이 요청됨
 
   const send = (snap) => {

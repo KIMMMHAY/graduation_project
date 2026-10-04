@@ -42,7 +42,7 @@ streamlit run app.py
 | `web/` | **Streamlit에 의존하지 않는** 프론트엔드 모듈(순수 ES 모듈). MVP 화면으로 옮길 수 있게 유지 |
 | `components/` | `web/` 모듈을 Streamlit에 붙이는 얇은 어댑터(`st.components.v2`) |
 | `web/mannequin/` | 3D 마네킹(three.js를 생성자로 받음 → 번들러·로컬·CDN 어디서나). `demo.html`은 Streamlit 없이 쓰는 예시 |
-| `static/vendor/three/` | three.js 0.186.1 원본(수정 금지). `.streamlit/config.toml`의 `enableStaticServing`으로 `/app/static/`에서 제공 → 오프라인 동작 |
+| `static/vendor/three/` | three.js 0.186.1 원본(수정 금지). `.streamlit/config.toml`의 `enableStaticServing`으로 `/app/static/`에서 제공 → 오프라인 동작. **설정은 서버를 켤 때만 읽히므로, 바꾸면 앱을 다시 시작해야 한다** |
 | `supabase/schema.sql` | DB 스키마 전체. 여러 번 실행해도 안전해야 함(`if not exists`, 정책 존재 확인) |
 | `third_party/` | 프로젝트에 포함한 외부 코드와 라이선스 원문 |
 | `drawing_ref_test/` | 로컬 데이터(이미지, 캐시, 모델). **Git 제외** |
