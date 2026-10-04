@@ -96,3 +96,67 @@ begin
       using (not exists (select 1 from public.labels l where l.tag_key = tags.key));
   end if;
 end $$;
+
+-- =====================================================================
+-- 포즈 핀 라벨링 + 포즈 검색 (SPEC_pose_annotation_search 단계 1)
+-- 이 블록만 따로 실행해도 된다. 여러 번 실행해도 안전하다.
+-- =====================================================================
+
+-- ---------- 포즈 (일러스트 위 13개 관절 핀) ----------
+create table if not exists public.poses (
+  image_id     text not null references public.images(id) on delete cascade,
+  person_index smallint not null default 0 check (person_index >= 0),       -- 한 이미지 내 인물 번호
+  annotator    text not null check (length(trim(annotator)) > 0),           -- 작성자 이름 (모델 결과면 모델 이름)
+  source       text not null default 'manual' check (source in ('manual', 'model', 'model_corrected')),
+  facing       text check (facing in ('front', 'side', 'back')),             -- 몸이 향한 방향 (건너뛴 경우 비어 있음)
+  keypoints    jsonb not null check (jsonb_typeof(keypoints) = 'array' and jsonb_array_length(keypoints) = 13),
+                                                                             -- 13개 {x, y, state}, 좌표는 이미지 크기 대비 0~1
+  status       text not null default 'draft' check (status in ('draft', 'done', 'skipped')),
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+  primary key (image_id, person_index, annotator)
+);
+create index if not exists poses_status_idx on public.poses (status, source);
+
+-- ---------- 포즈 검색 평가 (비슷함/다름) ----------
+create table if not exists public.pose_evals (
+  id               bigint generated always as identity primary key,
+  evaluator        text not null check (length(trim(evaluator)) > 0),
+  query_hash       text not null,                  -- 같은 검색(질의 포즈 + 옵션)을 묶는 키
+  query            jsonb not null,                 -- 질의 포즈 13개 {x, y, state} + aspect
+  options          jsonb not null default '{}',    -- 부위, 좌우 반전, 방향 필터, 허용 범위
+  result_image_id  text not null references public.images(id) on delete cascade,
+  result_annotator text,
+  rank             int,
+  score            real,
+  flip             boolean not null default false,
+  verdict          text not null check (verdict in ('similar', 'different')),
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+  unique (evaluator, query_hash, result_image_id)  -- 같은 사람이 다시 누르면 덮어쓰기
+);
+
+-- ---------- 권한 ----------
+grant select, insert, update, delete on public.poses, public.pose_evals to service_role;
+grant select, insert, update         on public.poses, public.pose_evals to anon, authenticated;
+grant usage, select on all sequences in schema public to anon, authenticated, service_role;
+
+alter table public.poses      enable row level security;
+alter table public.pose_evals enable row level security;
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['poses', 'pose_evals'] loop
+    if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = t and policyname = t || '_select') then
+      execute format('create policy %I on public.%I for select to anon, authenticated using (true)', t || '_select', t);
+    end if;
+    if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = t and policyname = t || '_insert') then
+      execute format('create policy %I on public.%I for insert to anon, authenticated with check (true)', t || '_insert', t);
+    end if;
+    if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = t and policyname = t || '_update') then
+      execute format('create policy %I on public.%I for update to anon, authenticated using (true) with check (true)', t || '_update', t);
+    end if;
+  end loop;
+end $$;

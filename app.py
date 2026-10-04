@@ -15,6 +15,10 @@ pages = {
         st.Page("views/predictions.py", title="예측 확인", icon="🤖"),
         st.Page("views/tags_admin.py", title="태그 관리", icon="🗂️"),
     ],
+    "포즈": [
+        st.Page("views/pose_label.py", title="포즈 라벨링", icon="🦴"),
+        st.Page("views/pose_search.py", title="포즈 검색 (2D)", icon="🔎"),
+    ],
 }
 nav = st.navigation(pages)
 

@@ -53,6 +53,16 @@ def friendly_error(e: Exception) -> str:
     return f"DB 오류: {msg}"
 
 
+def call(fn, *args, **kwargs):
+    """DB 작업을 실행하고, 실패하면 한국어 메시지의 DBError로 바꿔 던진다."""
+    try:
+        return fn(*args, **kwargs)
+    except DBError:
+        raise
+    except Exception as e:
+        raise DBError(friendly_error(e)) from e
+
+
 def fetch_all(table: str, columns: str = "*") -> list[dict]:
     """페이지를 넘겨 가며 테이블 전체를 읽는다."""
     rows, start = [], 0

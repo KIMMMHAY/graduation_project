@@ -1,15 +1,16 @@
-streamlit>=1.46
-pandas
-numpy
-pillow
-imagehash
-pyyaml
-scikit-learn
-joblib
-open_clip_torch
-supabase
-python-dotenv
+# 팀원용 의존성 (Python 3.14 기준으로 검증한 버전에 고정)
 # torch는 GPU가 없으면 CPU 버전을 먼저 설치하세요 (용량이 훨씬 작음):
-#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-torch
-torchvision
+#   pip install torch==2.14.1 torchvision==0.29.1 --index-url https://download.pytorch.org/whl/cpu
+streamlit==1.56.0
+pandas==3.0.2
+numpy==2.4.4
+pillow==12.2.0
+imagehash==4.3.2
+pyyaml==6.0.3
+scikit-learn==1.9.1
+joblib==1.6.0
+open_clip_torch==3.3.0
+torch==2.14.1
+torchvision==0.29.1
+supabase==2.32.0
+python-dotenv==1.2.4

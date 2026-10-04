@@ -1,0 +1,5 @@
+# 개발자용 의존성 (팀원은 설치하지 않아도 됩니다)
+# 설치 후 브라우저도 한 번 받아야 합니다:  python -m playwright install chromium
+-r requirements.txt
+pytest==9.1.1
+playwright==1.63.0

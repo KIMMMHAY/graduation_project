@@ -15,6 +15,10 @@ streamlit run app.py
 
 - 단독 스크립트: `python training.py`(자동 태깅 학습), `python migrate_to_supabase.py`(로컬 데이터 → DB), `python check_supabase.py`(DB 연결 테스트)
 - 테스트: `python -m pytest tests`
+  - `tests/test_pose.py`: 매칭 단위 테스트 (DB·브라우저 불필요)
+  - `tests/e2e/test_pin_editor.py`: 핀 편집기를 Chromium에서 직접 검증 (Streamlit·DB 불필요)
+  - `tests/e2e/test_pose_app.py`: 실제 서버 + 브라우저 + Supabase 전체 흐름. 테이블이 없으면 자동으로 건너뜀
+  - 기존 페이지 확인은 `AppTest`로 **화면만 그려 볼 것**. 평가 버튼을 누르는 스모크 테스트는 실제 `eval_phash.csv`에 기록하므로 돌리지 않는다
 
 ## 구조
 
@@ -41,6 +45,8 @@ streamlit run app.py
 - 페이지 간 공유 상태는 `st.session_state`, 위젯 키 이름은 페이지 접두사를 붙인다(`label_`, `pose_` 등).
 - `st.cache_resource`/`st.cache_data` 함수의 인자 이름을 `_`로 시작하면 캐시 키에서 빠진다. 모듈 리로드 대비는 `methods/__init__.py`의 클래스 id 키 참고.
 - 무거운 계산 결과(Phash, 임베딩)는 `drawing_ref_test/cache/` 등에 파일로 캐시한다.
+- `st.components.v2` 컴포넌트 키에는 `__`를 쓸 수 없다. 작성자 이름처럼 임의 문자가 들어가는 키는 해시로 바꾼다(`components/pose_editor.py`).
+- v2 컴포넌트는 같은 키로 다시 그려질 때 JS 함수가 다시 호출된다. 편집 중 상태는 `data.version`이 같으면 유지하고, 바꾸려면 version을 바꾼다.
 - 좌표는 이미지 크기에 대한 0~1 비율로 저장하고, 각도 계산 전에는 반드시 가로세로 비율을 보정한다.
 - 포즈의 좌우는 **캐릭터 기준**(캐릭터의 왼팔 = `l_`). 화면에 안내 문구를 항상 표시한다.
 
