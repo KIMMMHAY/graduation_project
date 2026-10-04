@@ -32,7 +32,8 @@ def _renderer():
 def mannequin(*, key: str, version: str, height: int = 560, state: dict | None = None) -> dict | None:
     """마네킹을 그리고 현재 투영 결과를 돌려준다: {keypoints, aspect, facing, state}. 아직 준비 전이면 None."""
     if not st.get_option("server.enableStaticServing"):
-        # 설정은 서버를 켤 때만 읽힌다. 설정 파일이 생기기 전에 켠 서버면 three.js를 불러올 수 없다
+        # 설정은 서버를 켤 때만 적용된다. 실행 중에 설정 파일이 생기면 값만 True로 바뀌고 실제 제공은 안 되므로,
+        # 그 경우는 이 검사로는 못 잡고 브라우저 쪽(mannequin_streamlit.js)에서 불러오기 실패로 안내한다
         st.error("3D 마네킹을 불러올 수 없습니다. 앱을 **다시 시작**해 주세요: 터미널에서 `Ctrl+C`로 끈 뒤 "
                  "프로젝트 폴더에서 `streamlit run app.py`. (프로젝트 폴더의 `.streamlit/config.toml`이 필요합니다)")
         return None

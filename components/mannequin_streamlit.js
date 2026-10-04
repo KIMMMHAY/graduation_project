@@ -20,13 +20,20 @@ export default async function (component) {
   host.__mq = null;
 
   let THREE;
+  const url = new URL(data.three_url, document.baseURI);
+  // 한 번 실패한 주소는 브라우저가 페이지를 새로고침할 때까지 실패로 기억하므로, 재시도할 때는 주소를 바꾼다
+  if (window.__threeRetry) url.searchParams.set('retry', window.__threeRetry);
   try {
-    THREE = await import(new URL(data.three_url, document.baseURI).href);
+    THREE = await import(url.href);
   } catch (e) {
+    window.__threeRetry = (window.__threeRetry || 0) + 1;
     host.__version = null;  // 다음 재실행 때 다시 시도
-    host.innerHTML = '<div style="padding:12px;border-radius:8px;background:#fee2e2;color:#991b1b;font-size:14px">'
-      + '3D 마네킹(three.js)을 불러오지 못했습니다. 앱을 다시 시작해 주세요: 터미널에서 Ctrl+C 후 '
-      + '프로젝트 폴더에서 <code>streamlit run app.py</code></div>';
+    host.innerHTML = '<div style="padding:12px;border-radius:8px;background:#fee2e2;color:#991b1b;font-size:14px;line-height:1.6">'
+      + '<b>3D 마네킹(three.js)을 불러오지 못했습니다.</b><br>'
+      + '앱 서버가 설정 파일(<code>.streamlit/config.toml</code>)이 생기기 전 상태로 실행 중입니다. 서버를 <b>완전히</b> 껐다가 다시 켜 주세요.<br>'
+      + '1. 앱을 실행한 터미널에서 <code>Ctrl+C</code> → 명령 프롬프트가 다시 나올 때까지 기다립니다 (안 꺼지면 터미널 창을 닫으세요)<br>'
+      + '2. 프로젝트 폴더에서 <code>streamlit run app.py</code><br>'
+      + '3. 이 페이지를 새로고침(F5)</div>';
     return;
   }
   if (host.__version !== data.version) return;  // 불러오는 사이에 다른 버전이 요청됨
