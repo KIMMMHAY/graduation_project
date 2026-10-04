@@ -1,0 +1,15 @@
+streamlit>=1.46
+pandas
+numpy
+pillow
+imagehash
+pyyaml
+scikit-learn
+joblib
+open_clip_torch
+supabase
+python-dotenv
+# torch는 GPU가 없으면 CPU 버전을 먼저 설치하세요 (용량이 훨씬 작음):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision

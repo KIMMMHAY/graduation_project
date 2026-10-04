@@ -1,0 +1,15 @@
+# 수집 이미지·라벨·모델 등 데이터는 공유하지 않는다 (저작권, 용량)
+drawing_ref_test/
+# 팀 태그 정의는 Supabase tags 테이블이 기준 (tags.yaml은 더 이상 쓰지 않음)
+
+# 접속 정보(Supabase 키 등)는 절대 올리지 않는다
+.env
+*.env
+
+__pycache__/
+*.pyc
+
+# 개발용 테스트 산출물
+.pytest_cache/
+test-results/
+playwright-report/
