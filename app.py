@@ -4,6 +4,9 @@ import streamlit as st
 st.set_page_config(page_title="드로잉 레퍼런스 검증", page_icon="🎨", layout="wide")
 
 pages = {
+    "팀": [
+        st.Page("views/team.py", title="팀 현황", icon="👥"),
+    ],
     "검증": [
         st.Page("views/gallery.py", title="갤러리", icon="🖼️", default=True),
         st.Page("views/similar.py", title="유사 검색", icon="🔍"),
@@ -29,6 +32,8 @@ with st.sidebar:
                   help="유사 검색 평가와 라벨링을 저장할 때 누가 했는지 기록합니다.")
     from core.db import is_configured
     st.caption("태그·라벨 저장소: **Supabase**" if is_configured() else ":red[Supabase 접속 정보 없음 — .env 확인]")
+    from views.common import name_check
+    name_check()
 
 from core.dataset import META_CSV  # noqa: E402
 if not is_configured() and not META_CSV.exists():  # 이미지 목록을 읽을 곳이 없으면 모든 페이지가 오류로 멈춘다

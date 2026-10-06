@@ -49,6 +49,14 @@ def predictions_source() -> str:
     return _current()[2]
 
 
+def predictions_time() -> pd.Timestamp | None:
+    """지금 보이는 예측을 만든 학습 시각(UTC). 예측이 없으면 None."""
+    kind, _, value = _current()[0].partition(":")
+    if kind == "shared":
+        return pd.Timestamp(value).tz_convert("UTC")
+    return None if value in ("", "None") else pd.Timestamp(float(value), unit="s", tz="UTC")
+
+
 def refresh_predictions() -> None:
     """학습 직후 호출: 공유 예측을 기다리지 않고 바로 다시 읽는다."""
     _load_shared.clear()

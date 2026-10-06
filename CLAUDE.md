@@ -18,6 +18,8 @@ streamlit run app.py
 - MediaPipe는 팀 환경에 넣지 않는다(numpy·OpenCV 충돌). 비교용은 `tools/mediapipe_predict.py` 상단 안내대로 별도 가상환경에서 실행
 - 테스트: `python -m pytest tests`
   - `tests/test_pose.py`: 매칭 단위 테스트 (DB·브라우저 불필요)
+  - `tests/test_team.py`: 팀 현황 집계·비슷한 이름 감지 단위 테스트
+  - `st.page_link`는 `st.navigation` 안에서만 동작한다. 페이지를 `AppTest.from_file`로 단독 실행해 볼 때는 `st.page_link`를 대체해 둔다
   - `tests/e2e/test_pin_editor.py`: 핀 편집기를 Chromium에서 직접 검증 (Streamlit·DB 불필요)
   - `tests/e2e/test_pose_app.py`, `test_pose_step2_app.py`, `test_pose_3d_app.py`: 실제 서버 + 브라우저 + Supabase 전체 흐름. 테이블이 없으면 자동으로 건너뜀
   - `tests/e2e/test_mannequin.py`: 마네킹을 Streamlit 없이 검증. 외부 네트워크 요청이 하나라도 있으면 실패(오프라인 보장)
@@ -28,7 +30,8 @@ streamlit run app.py
 
 | 경로 | 역할 |
 | --- | --- |
-| `app.py` | `st.navigation` 진입점, 사이드바 "내 이름"(`st.session_state["evaluator"]`) |
+| `app.py` | `st.navigation` 진입점, 사이드바 "내 이름"(`st.session_state["evaluator"]`, 처음 보는 이름이면 기존 이름 안내). `.env`와 로컬 데이터가 모두 없으면 설치 안내만 보여준다 |
+| `core/team.py` | 팀 활동 집계(팀원별 작업량, 비슷한 이름 감지, 마지막 학습 이후 라벨 수) — 순수 pandas. `views/team.py`(팀 현황)와 사이드바가 쓴다 |
 | `views/` | 페이지 스크립트. 공통 UI는 `views/common.py` |
 | `methods/` | 검색 방식 모듈. `SearchMethod` + 기능 믹스인(`ImageSearch`/`PairFinder`/`TagSource`), `METHOD_CLASSES`에 등록하면 해당 페이지에 자동 노출 |
 | `core/dataset.py` | `metadata.csv` + `images/` 로딩(`read_metadata`는 순수 함수, `load_metadata`는 캐시 버전), 썸네일 |
