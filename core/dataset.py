@@ -1,4 +1,6 @@
 """데이터셋(metadata.csv + images/) 로딩과 썸네일 관리."""
+import hashlib
+import urllib.request
 from pathlib import Path
 
 import pandas as pd
@@ -11,7 +13,36 @@ IMG_DIR = DATA_DIR / "images"
 META_CSV = DATA_DIR / "metadata.csv"
 CACHE_DIR = DATA_DIR / "cache"
 THUMB_DIR = CACHE_DIR / "thumbs"
+REMOTE_DIR = CACHE_DIR / "remote"  # 서버: URL 이미지를 한 번 내려받아 두는 곳
 THUMB_SIZE = 384
+DOWNLOAD_TIMEOUT = 30
+
+
+def is_url(img_path: str) -> bool:
+    return img_path.startswith(("http://", "https://"))
+
+
+def local_image(img_path: str) -> str:
+    """파일로 열 수 있는 이미지 경로. 서버처럼 img_path가 URL이면 내려받아 캐시하고 그 경로를 돌려준다.
+
+    PIL·OpenCV·CLIP 등 파일 경로가 필요한 곳은 img_path를 바로 쓰지 말고 이 함수를 거친다.
+    """
+    if not is_url(img_path):
+        return img_path
+    suffix = Path(img_path.split("?", 1)[0]).suffix.lower()
+    dst = REMOTE_DIR / (hashlib.md5(img_path.encode()).hexdigest() + (suffix if len(suffix) <= 5 else ""))
+    if not dst.exists():
+        REMOTE_DIR.mkdir(parents=True, exist_ok=True)
+        req = urllib.request.Request(img_path, headers={"User-Agent": "drawing-ref-validation/1.0"})
+        try:
+            with urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT) as r:
+                data = r.read()
+        except OSError as e:
+            raise FileNotFoundError(f"이미지를 내려받지 못했습니다 ({img_path}): {e}") from e
+        tmp = dst.with_name(dst.name + ".part")  # 받다가 끊겨도 깨진 파일이 캐시로 남지 않게
+        tmp.write_bytes(data)
+        tmp.replace(dst)
+    return str(dst)
 
 
 def _local_path(image_id: str, csv_path) -> Path:
@@ -52,7 +83,7 @@ load_metadata = st.cache_data(show_spinner="메타데이터 불러오는 중..."
 
 def thumbnail(img_path: str) -> str:
     """갤러리용 축소 이미지 경로. 없으면 만들어서 cache/thumbs/에 저장한다."""
-    if img_path.startswith(("http://", "https://")):  # 서버: URL은 그대로 쓴다
+    if is_url(img_path):  # 서버: URL은 브라우저가 직접 불러오므로 그대로 쓴다
         return img_path
     src = Path(img_path)
     dst = THUMB_DIR / src.name

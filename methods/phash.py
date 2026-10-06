@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
-from core.dataset import CACHE_DIR
+from core.dataset import CACHE_DIR, local_image
 from methods.base import Hit, ImageSearch, PairFinder, SearchMethod
 
 CACHE_CSV = CACHE_DIR / "phash.csv"
@@ -39,7 +39,7 @@ class PhashMethod(SearchMethod, ImageSearch, PairFinder):
         missing = [(i, p) for i, p in zip(self.df["id"], self.df["img_path"]) if i not in cached]
         if missing:
             for i, p in missing:
-                with Image.open(p) as img:
+                with Image.open(local_image(p)) as img:
                     cached[i] = imagehash.phash(img)
             CACHE_DIR.mkdir(parents=True, exist_ok=True)
             pd.DataFrame({"id": list(cached), "phash": [str(h) for h in cached.values()]}).to_csv(CACHE_CSV, index=False)

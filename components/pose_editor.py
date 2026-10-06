@@ -8,7 +8,7 @@ import streamlit as st
 from PIL import Image
 
 from core import pose as P
-from core.dataset import ROOT
+from core.dataset import ROOT, local_image
 
 _JS = (ROOT / "web" / "pose_editor" / "pin_editor.js").read_text(encoding="utf-8") + "\n" + \
       (Path(__file__).parent / "pose_editor_streamlit.js").read_text(encoding="utf-8")
@@ -39,7 +39,7 @@ MAX_IMAGE_SIDE = 1200
 @st.cache_data(show_spinner=False, max_entries=64)
 def image_data_url(path: str) -> str:
     """브라우저로 보낼 이미지 (data URL). 너무 크면 줄인다."""
-    with Image.open(path) as img:
+    with Image.open(local_image(path)) as img:
         img = img.convert("RGB")
         img.thumbnail((MAX_IMAGE_SIDE, MAX_IMAGE_SIDE))
         buf = io.BytesIO()

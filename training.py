@@ -21,7 +21,7 @@ from core.cli import quiet_streamlit, utf8_console
 
 quiet_streamlit()
 
-from core.dataset import read_metadata  # noqa: E402
+from core.dataset import local_image, read_metadata  # noqa: E402
 from core.tagging import (EMB_IDS_CSV, EMB_NPY, MODELS_DIR, NEGATIVE, POSITIVE, PRED_CSV,  # noqa: E402
                           REPORT_CSV, TagDef, consolidate, load_labels, load_tags)
 
@@ -80,7 +80,7 @@ def embed_images(embedder, paths: list[str]) -> np.ndarray:
     model, preprocess = embedder
     batch = []
     for p in paths:
-        with Image.open(p) as img:
+        with Image.open(local_image(p)) as img:
             batch.append(preprocess(img.convert("RGB")))
     with torch.no_grad():
         feats = model.encode_image(torch.stack(batch))

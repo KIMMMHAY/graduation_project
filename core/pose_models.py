@@ -79,7 +79,9 @@ class DWPoseModel:
 
     def predict(self, image_path: str) -> Prediction | None:
         import cv2
-        bgr = cv2.imread(image_path)
+
+        from core.dataset import local_image
+        bgr = cv2.imread(local_image(image_path))
         if bgr is None:
             raise FileNotFoundError(image_path)
         h, w = bgr.shape[:2]

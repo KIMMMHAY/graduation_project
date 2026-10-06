@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageOps
 
 from core import pose as P
 from core import poses as store
+from core.dataset import local_image
 from core.db import DBError
 
 GUIDE = ("좌우는 **캐릭터 기준**입니다. 캐릭터의 왼팔이 `왼쪽`(파랑)이에요. "
@@ -34,7 +35,7 @@ def load_poses_or_stop() -> pd.DataFrame:
 @st.cache_data(show_spinner=False, max_entries=256)
 def _overlay(img_path: str, keypoints_json: str, flip: bool, size: int) -> Image.Image:
     kps = json.loads(keypoints_json)
-    with Image.open(img_path) as src:
+    with Image.open(local_image(img_path)) as src:
         img = src.convert("RGB")
     img.thumbnail((size, size))
     w, h = img.size

@@ -61,6 +61,7 @@ streamlit run app.py
 - 체크할 때마다 즉시 바뀌어야 하는 안내가 있는 입력 영역은 `st.form` 대신 `@st.fragment`로 감싼다(그 영역만 다시 그림, DB 재조회 없음).
 - 화면에 그리지 않은 위젯의 값은 Streamlit이 지운다. 화면 전환 후에도 유지해야 하는 값은 `views/labeling.py`처럼 매 실행 시 다시 넣어 둔다.
 - v2 컴포넌트는 같은 키로 다시 그려질 때 JS 함수가 다시 호출된다. 편집 중 상태는 `data.version`이 같으면 유지하고, 바꾸려면 version을 바꾼다.
+- 서버(로컬 `metadata.csv` 없음)에서는 `img_path`가 이미지 URL이다. 파일로 열어야 하는 곳(PIL·OpenCV·CLIP)은 반드시 `core.dataset.local_image(img_path)`를 거친다(내려받아 `cache/remote/`에 캐시). `st.image`는 URL을 그대로 받으므로 필요 없다.
 - 좌표는 이미지 크기에 대한 0~1 비율로 저장하고, 각도 계산 전에는 반드시 가로세로 비율을 보정한다.
 - 포즈의 좌우는 **캐릭터 기준**(캐릭터의 왼팔 = `l_`). 화면에 안내 문구를 항상 표시한다.
 
