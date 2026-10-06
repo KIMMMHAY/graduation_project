@@ -6,6 +6,10 @@ drawing_ref_test/
 .env
 *.env
 
+# 개인 편집기 설정
+.idea/
+.vscode/
+
 __pycache__/
 *.pyc
 
