@@ -1,6 +1,36 @@
 """드로잉 레퍼런스 기술 검증 웹앱.  실행: streamlit run app.py"""
+import sys
+from pathlib import Path
+
 import streamlit as st
 
+ROOT = Path(__file__).resolve().parent
+PROJECT_MODULES = ("core", "methods", "views", "components", "training")
+
+
+@st.cache_resource
+def _code_state() -> dict:
+    return {}  # 이 서버 프로세스가 마지막으로 불러온 코드 버전 (재실행·세션 사이에 유지)
+
+
+def _reload_changed_code() -> None:
+    """코드가 바뀌었으면 메모리에 남은 예전 모듈을 버려, 이번 실행에서 새 파일을 불러오게 한다.
+
+    Streamlit Cloud는 push한 파일을 받아도 서버를 재시작하지 않는 경우가 있다. 그러면 app.py는 새것인데
+    이미 불러온 views/common.py 등은 예전 것이라 ImportError가 난다 (관리자가 Reboot해야만 풀림).
+    """
+    files = [*ROOT.glob("*.py"), *(f for p in PROJECT_MODULES[:-1] for f in (ROOT / p).glob("*.py")),
+             *(ROOT / "web").rglob("*.js"), *(ROOT / "components").glob("*.js")]
+    version = max((f.stat().st_mtime_ns for f in files), default=0)
+    state = _code_state()
+    if state.get("version") == version:
+        return
+    for name in [n for n in sys.modules if n.split(".")[0] in PROJECT_MODULES]:
+        sys.modules.pop(name, None)
+    state["version"] = version
+
+
+_reload_changed_code()
 st.set_page_config(page_title="드로잉 레퍼런스 검증", page_icon="🎨", layout="wide")
 
 pages = {
