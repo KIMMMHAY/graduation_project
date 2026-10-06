@@ -175,9 +175,40 @@ def consolidate(labels: pd.DataFrame) -> pd.DataFrame:
 # ---------- 예측 ----------
 
 def read_predictions() -> pd.DataFrame:
+    """이 PC에서 마지막으로 학습한 예측 (predicted_tags.csv)."""
     if not PRED_CSV.exists():
         return pd.DataFrame(columns=["image_id", "tag_key", "prob"])
     return pd.read_csv(PRED_CSV, dtype={"image_id": str, "tag_key": str}, encoding="utf-8-sig")
+
+
+def publish_predictions(preds: pd.DataFrame, model: str) -> int:
+    """예측을 DB(predictions)에 올려 팀 전체가 같은 결과를 보게 한다. 올린 행 수를 돌려준다.
+
+    - 같은 실행의 행은 모두 같은 predicted_at을 가진다. 읽을 때는 가장 최근 실행의 행만 쓰므로,
+      이번에 학습하지 않은 태그의 예전 예측은 자동으로 빠진다 (팀원 키로는 삭제 권한이 없어서 이 방식을 쓴다).
+    - 한 번의 요청으로 보낸다 → 전부 저장되거나 전부 실패 (일부만 바뀐 상태가 최신으로 보이지 않게).
+    - DB에 없는 이미지(로컬에만 있는 이미지)는 외래키 오류가 나므로 뺀다.
+    """
+    known = {r["id"] for r in _db_call(db.fetch_all, "images", "id")}
+    p = preds[preds["image_id"].astype(str).isin(known)]
+    run_at = _now()
+    rows = [{"image_id": str(i), "tag_key": k, "prob": round(min(max(float(v), 0.0), 1.0), 4),
+             "model": model, "predicted_at": run_at}
+            for i, k, v in zip(p["image_id"], p["tag_key"], p["prob"])]
+    if rows:
+        _db_call(db.upsert, "predictions", rows, on_conflict="image_id,tag_key", chunk=len(rows))
+    return len(rows)
+
+
+def load_shared_predictions() -> pd.DataFrame:
+    """DB의 팀 공유 예측 중 가장 최근 학습 실행의 것. 컬럼: image_id, tag_key, prob, model, predicted_at."""
+    cols = ["image_id", "tag_key", "prob", "model", "predicted_at"]
+    df = pd.DataFrame(_db_call(db.fetch_all, "predictions", ", ".join(cols)), columns=cols)
+    if df.empty:
+        return df
+    at = pd.to_datetime(df["predicted_at"], utc=True, format="ISO8601")  # 문자열 비교는 소수점 자리수에 따라 틀릴 수 있다
+    df = df[at == at.max()].reset_index(drop=True)
+    return df.astype({"image_id": str, "tag_key": str, "prob": float})
 
 
 def file_mtime(path) -> float | None:

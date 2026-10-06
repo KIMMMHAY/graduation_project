@@ -3,7 +3,8 @@ import streamlit as st
 
 import training
 from core.tagging import REPORT_CSV, consolidate
-from views.common import load_labels_or_stop, load_tags_or_stop
+from methods.predicted_tags import predictions_source, refresh_predictions
+from views.common import current_user, load_labels_or_stop, load_tags_or_stop
 
 RUNNING = "train_running"
 RESULT = "train_result"
@@ -28,7 +29,9 @@ st.dataframe(
     }),
     hide_index=True, width="stretch",
 )
-st.caption(f"임베딩 캐시: {len(cached_ids)}장")
+st.caption(f"임베딩 캐시: {len(cached_ids)}장 · 지금 팀이 보는 예측: {predictions_source()}")
+st.caption("학습이 끝나면 예측 결과가 DB에 올라가 팀원 모두의 화면(AI 추천, 예측 확인, 갤러리)에 반영됩니다. "
+           "한 명만 실행하면 됩니다.")
 
 
 def start() -> None:
@@ -51,7 +54,9 @@ if running:
                 if frac is not None:
                     bar.progress(min(max(frac, 0.0), 1.0), text=stage)
 
-            st.session_state[RESULT] = training.train_all(get_embedder=get_embedder, progress=progress)
+            st.session_state[RESULT] = training.train_all(get_embedder=get_embedder, progress=progress,
+                                                          publish=True, trainer=current_user())
+            refresh_predictions()  # 공유 예측을 1분 기다리지 않고 바로 다시 읽는다
     except training.TrainingError as e:
         st.session_state[ERROR] = str(e)
     except Exception as e:  # 예상 못 한 오류도 화면에 한국어로 남긴다
@@ -68,6 +73,10 @@ if result is not None:
     if result.trained:
         st.success(f"학습 완료 · {len(result.report)}개 태그 · 새로 추출한 임베딩 {result.n_new_embeddings}장 · "
                    f"{result.seconds:.1f}초")
+        if result.share_error:
+            st.warning(f"예측을 팀에 공유하지 못했습니다(이 PC에는 저장됨). {result.share_error}")
+        elif result.shared_rows is not None:
+            st.info(f"예측 {result.shared_rows}건을 팀에 공유했습니다. 다른 팀원 화면에는 1분 안에 반영됩니다.")
     else:
         st.warning("라벨 부족: 학습 가능한 태그가 없습니다. 위 표의 사유를 확인하고 라벨링 페이지에서 라벨을 더 모아 주세요.")
     with st.expander("실행 기록"):

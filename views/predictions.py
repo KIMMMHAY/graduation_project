@@ -2,7 +2,7 @@ import streamlit as st
 
 from core.dataset import load_metadata
 from core.tagging import NEGATIVE, POSITIVE
-from methods.predicted_tags import load_predictions
+from methods.predicted_tags import load_predictions, predictions_source
 from views.common import (current_user, image_card, load_labels_or_stop, load_tags_or_stop, paginate,
                           save_label_safely, tag_label)
 
@@ -27,7 +27,7 @@ c1, c2, c3 = st.columns([2, 2, 1])
 threshold = c1.slider("확률 임계값", 0.0, 1.0, 0.5, 0.05, key="pred_threshold")
 view = c2.radio("보기", [ABOVE, BELOW], key="pred_view")
 hide_done = c3.toggle("내가 라벨링한 것 숨기기", value=False, key="pred_hide")
-st.caption("맞음/틀림은 labels.csv에 라벨로 저장되어 다음 학습에 반영됩니다.")
+st.caption(f"예측 출처: {predictions_source()} · 맞음/틀림은 DB에 내 라벨로 저장되어 다음 학습에 반영됩니다.")
 
 labels = load_labels_or_stop()
 mine_rows = labels[(labels["tag_key"] == tag.key) & (labels["labeler"] == labeler)]

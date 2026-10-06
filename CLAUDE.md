@@ -13,7 +13,7 @@ python -m playwright install chromium    # 개발자용, 브라우저 E2E 테스
 streamlit run app.py
 ```
 
-- 단독 스크립트: `python training.py`(자동 태깅 학습), `python migrate_to_supabase.py`(로컬 데이터 → DB), `python check_supabase.py`(DB 연결 테스트)
+- 단독 스크립트: `python training.py [--name 이름] [--no-share]`(자동 태깅 학습, 기본으로 예측을 DB에 공유), `python migrate_to_supabase.py`(로컬 데이터 → DB), `python check_supabase.py`(DB 연결 테스트)
 - 포즈: `python predict_poses.py`(DWPose 미리 계산, 아직 없는 이미지만, 500장 약 25분), `python predict_poses.py --import x.json`(별도 환경 결과 가져오기), `python export_coco.py`(사람이 확정한 포즈 → COCO)
 - MediaPipe는 팀 환경에 넣지 않는다(numpy·OpenCV 충돌). 비교용은 `tools/mediapipe_predict.py` 상단 안내대로 별도 가상환경에서 실행
 - 테스트: `python -m pytest tests`
@@ -33,7 +33,8 @@ streamlit run app.py
 | `methods/` | 검색 방식 모듈. `SearchMethod` + 기능 믹스인(`ImageSearch`/`PairFinder`/`TagSource`), `METHOD_CLASSES`에 등록하면 해당 페이지에 자동 노출 |
 | `core/dataset.py` | `metadata.csv` + `images/` 로딩(`read_metadata`는 순수 함수, `load_metadata`는 캐시 버전), 썸네일 |
 | `core/db.py` | Supabase 클라이언트, `fetch_all`/`upsert`, `friendly_error`(한국어 오류) |
-| `core/tagging.py` | 팀 태그(`tags`)·라벨(`labels`) DB 입출력, 예측 CSV. `save_labels()`는 이미지 한 장의 여러 태그를 한 번의 요청으로 저장(전부 저장 또는 전부 실패) |
+| `core/tagging.py` | 팀 태그(`tags`)·라벨(`labels`) DB 입출력, 예측 CSV·DB 공유(`predictions`). `save_labels()`는 이미지 한 장의 여러 태그를 한 번의 요청으로 저장(전부 저장 또는 전부 실패) |
+| `methods/predicted_tags.py` | 예측 읽기 공통 입구 `load_predictions()`: DB 공유 예측(가장 최근 학습 실행, 1분 캐시) → 없으면 로컬 `predicted_tags.csv` |
 | `core/image_labeling.py` | 이미지별 라벨링 규칙: 체크=1·해제=0·보류=저장 안 함, 끝낸 이미지 = 사용 중 태그 전부에 내 라벨이 있음 (순수 함수) |
 | `views/labeling.py` | 라벨링 방식 전환. `labeling_by_image.py`(기본, 체크박스 한 번에) / `labeling_by_tag.py`(기존 화면을 함수로 감싼 것 — 동작 변경 금지) |
 | `core/pose.py` | 포즈 관절 정의·정규화·매칭 (순수 numpy, Streamlit/DB 의존 없음) |
@@ -70,6 +71,8 @@ streamlit run app.py
 - `SUPABASE.env`/`.env`의 키 값은 **절대 출력하지 않는다.** 키 종류 확인이 필요하면 접두사(`sb_secret_`/`sb_publishable_`)만 본다.
 - 태그를 새로 만들어야 하는 테스트는 key `zz_test_*` + 이름 `[테스트] ...`로 만들고, fixture에서 **시작 전·종료 시(실패해도)** 정리한다.
   임시 태그의 라벨을 먼저 지워야 태그가 지워진다(`labels.tag_key`는 외래키 restrict). 예: `tests/e2e/test_labeling_image_app.py`
+- `training.train_all()`은 기본으로 예측을 DB에 올리지 않는다(`publish=False`). 웹 '학습 실행'과 CLI만 `publish=True`. 테스트에서 켜면 팀 공유 예측을 덮어쓴다.
+  공유 예측은 지우지 않고(팀원 키는 삭제 권한 없음) 실행마다 같은 `predicted_at`을 붙여, 읽을 때 가장 최근 실행만 쓴다.
 - 학습을 실행하는 테스트는 `training`의 결과 경로(MODELS_DIR, REPORT_CSV, PRED_CSV, 임베딩 캐시)를 임시 폴더로 바꿔서 이 PC의 결과 파일을 덮어쓰지 않는다.
 - `poses`의 `source='model'` 행(annotator = 모델 이름: `dwpose`, `mediapipe-heavy`)은 모델 결과다. 사람 데이터와 섞어 지우지 말 것. 사람 라벨은 `manual`/`model_corrected`.
 - 테스트는 실제 팀 데이터를 건드리지 않는다. DB에 쓰는 테스트는 작성자/라벨러 이름 `__test__`를 쓰고 끝나면 그 행만 지운다.

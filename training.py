@@ -23,7 +23,7 @@ quiet_streamlit()
 
 from core.dataset import local_image, read_metadata  # noqa: E402
 from core.tagging import (EMB_IDS_CSV, EMB_NPY, MODELS_DIR, NEGATIVE, POSITIVE, PRED_CSV,  # noqa: E402
-                          REPORT_CSV, TagDef, consolidate, load_labels, load_tags)
+                          REPORT_CSV, TagDef, consolidate, load_labels, load_tags, publish_predictions)
 
 # 임베딩 모델 설정. WD Tagger 등으로 바꿀 때는 이 상수와 load_embedder / embed_images만 고치면 된다.
 # EMBED_ID가 바뀌면 기존 임베딩 캐시는 자동으로 버리고 새로 추출한다.
@@ -55,6 +55,8 @@ class TrainResult:
     n_new_embeddings: int = 0
     seconds: float = 0.0
     log: list[str] = field(default_factory=list)
+    shared_rows: int | None = None          # 팀에 공유한 예측 행 수 (공유하지 않았으면 None)
+    share_error: str = ""                   # 공유 실패 사유 (로컬 결과 파일은 이미 저장된 상태)
 
     @property
     def trained(self) -> bool:
@@ -157,7 +159,12 @@ def _train_one(X: np.ndarray, y: np.ndarray) -> tuple[LogisticRegression, dict]:
     return clf, {"n_train": len(y_tr), "n_test": len(y_te), "precision": p, "recall": r, "f1": f1}
 
 
-def train_all(get_embedder: Callable = load_embedder, progress: Progress = _print_progress) -> TrainResult:
+def train_all(get_embedder: Callable = load_embedder, progress: Progress = _print_progress,
+              publish: bool = False, trainer: str = "") -> TrainResult:
+    """publish=True면 예측을 DB에 올려 팀 전체가 같은 결과를 본다 (웹 '학습 실행'·CLI 기본).
+
+    기본값이 False인 이유: 테스트처럼 함수를 직접 부르는 곳이 팀 공유 예측을 덮어쓰지 않게.
+    """
     t0 = time.perf_counter()
     log: list[str] = []
 
@@ -212,16 +219,34 @@ def train_all(get_embedder: Callable = load_embedder, progress: Progress = _prin
             raise TrainingError("전체 예측", f"태그 {key}", e) from e
         preds.append(pd.DataFrame({"image_id": df["id"], "tag_key": key, "prob": prob.round(4)}))
         report_progress("전체 예측", f"{n}/{len(models)} 태그", n / len(models))
-    pd.concat(preds).to_csv(PRED_CSV, index=False, encoding="utf-8-sig")
+    all_preds = pd.concat(preds)
+    all_preds.to_csv(PRED_CSV, index=False, encoding="utf-8-sig")
+
+    shared_rows, share_error = None, ""
+    if publish:
+        report_progress("팀 공유", "예측 결과를 DB에 올리는 중")
+        model = EMBED_ID + (f" · {trainer.strip()}" if trainer.strip() else "")
+        try:
+            shared_rows = publish_predictions(all_preds, model)
+            report_progress("팀 공유", f"{shared_rows}건 공유 완료 — 팀원 화면에 1분 안에 반영됩니다", 1.0)
+        except Exception as e:  # 공유 실패는 학습 실패가 아니다 (로컬 결과는 이미 저장됨)
+            share_error = str(e)
+            report_progress("팀 공유", f"실패 (이 PC의 결과 파일은 저장됨): {e}")
 
     seconds = time.perf_counter() - t0
     report_progress("완료", f"{len(models)}개 태그 학습 · 새 임베딩 {n_new}장 · {seconds:.1f}초")
-    return TrainResult(status=status, report=report, n_new_embeddings=n_new, seconds=seconds, log=log)
+    return TrainResult(status=status, report=report, n_new_embeddings=n_new, seconds=seconds, log=log,
+                       shared_rows=shared_rows, share_error=share_error)
 
 
 def main() -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description="태그별 분류기 학습")
+    ap.add_argument("--name", default="", help="학습한 사람 (팀 공유 예측에 함께 기록)")
+    ap.add_argument("--no-share", action="store_true", help="예측을 DB에 올리지 않고 이 PC에만 저장")
+    args = ap.parse_args()
     try:
-        result = train_all()
+        result = train_all(publish=not args.no_share, trainer=args.name)
     except TrainingError as e:
         print(f"\n실패: {e}", file=sys.stderr)
         return 1
@@ -232,6 +257,8 @@ def main() -> int:
         r = result.report[["name", "n_test", "precision", "recall", "f1"]].copy()
         r["주의"] = np.where(r["f1"] < F1_WARN, f"F1 < {F1_WARN}", "")
         print(r.to_string(index=False, float_format="%.2f"))
+        if result.share_error:
+            print(f"\n팀 공유 실패 (이 PC의 결과 파일은 저장됨): {result.share_error}", file=sys.stderr)
     return 0
 
 

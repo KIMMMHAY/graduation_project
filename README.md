@@ -21,8 +21,10 @@
 ## 매일: 실행
 
 ```
-streamlit run app.py
+python -m streamlit run app.py
 ```
+
+(`streamlit run app.py`도 되지만, "명령을 찾을 수 없다"고 나오면 위처럼 `python -m`을 붙이세요.)
 
 브라우저가 열리면 **왼쪽 사이드바 "내 이름"을 항상 같은 이름으로** 입력하세요.
 이름이 다르면(예: `김하영` / `하영`) 다른 사람으로 기록되어, 라벨 다수결에서 두 표로 계산됩니다.
@@ -53,7 +55,8 @@ streamlit run app.py
 | --- | --- |
 | "Supabase 접속 정보 없음" | `.env` 파일 이름·위치 확인 (프로젝트 폴더 바로 아래, 확장자 없이 `.env`) |
 | "DB에 테이블이 없습니다" / "권한(GRANT)" | 팀장에게: `supabase/schema.sql`을 Supabase SQL Editor에서 실행 |
-| 3D 마네킹이 안 뜸 | 터미널에서 `Ctrl+C`로 끄고 `streamlit run app.py`로 다시 실행 |
+| 3D 마네킹이 안 뜸 | 터미널에서 `Ctrl+C`로 끄고 `python -m streamlit run app.py`로 다시 실행 |
+| `.env`를 넣었는데 "접속 정보 없음" | 파일 이름이 `.env.txt`가 아닌지 확인 (탐색기 보기 → 파일 확장명 켜기) |
 | `python`을 찾을 수 없음 | Python 설치 시 "Add to PATH"를 빠뜨림 → 다시 설치 |
 
 개발 규칙·구조는 `CLAUDE.md`, 기능 명세는 `SPEC_*.md`를 보세요.
