@@ -34,6 +34,8 @@ class PhashMethod(SearchMethod, ImageSearch, PairFinder):
         if CACHE_CSV.exists():
             c = pd.read_csv(CACHE_CSV, dtype=str)
             cached = {i: imagehash.hex_to_hash(h) for i, h in zip(c["id"], c["phash"])}
+        elif "phash" in self.df.columns:  # 서버: 로컬 캐시 파일이 없으면 Supabase에 저장된 값을 쓴다
+            cached = {i: imagehash.hex_to_hash(h) for i, h in zip(self.df["id"], self.df["phash"]) if isinstance(h, str) and h}
         missing = [(i, p) for i, p in zip(self.df["id"], self.df["img_path"]) if i not in cached]
         if missing:
             for i, p in missing:

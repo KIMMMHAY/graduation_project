@@ -37,7 +37,7 @@ def read_metadata() -> pd.DataFrame:
 def _read_metadata_from_db() -> pd.DataFrame:
     from core import db  # db.py가 dataset.ROOT를 import하므로 순환 import를 피하려고 함수 안에서 import
 
-    rows = db.call(db.fetch_all, "images", "id,url,source_page,tags,width,height")
+    rows = db.call(db.fetch_all, "images", "id,url,source_page,tags,width,height,phash")
     df = pd.DataFrame(rows)
     df["id"] = df["id"].astype(str)
     df = df.drop_duplicates(subset="id").reset_index(drop=True)
