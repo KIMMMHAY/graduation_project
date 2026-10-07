@@ -1,13 +1,12 @@
-"""팀 활동 집계 (팀 현황 페이지, 사이드바 이름 확인).
+"""팀 활동 집계 (팀 현황 페이지).
 
-집계 함수는 순수 pandas(테스트 가능), fetch_known_names()만 DB를 읽는다.
+집계 함수는 모두 순수 pandas(테스트 가능).
 이름이 '__'로 시작하는 기록(테스트용 `__test__` 등)과 모델 결과(poses.source='model')는 사람 활동이 아니므로 뺀다.
 """
 import difflib
 
 import pandas as pd
 
-from core import db
 from core import pose as P
 from core.image_labeling import finished_images
 
@@ -44,20 +43,6 @@ def suspicious_pairs(names) -> list[tuple[str, str]]:
     """기존 이름 중 같은 사람일 수 있는 쌍 (팀 현황에서 통일을 권하는 용도)."""
     names = sorted(set(names))
     return [(a, b) for i, a in enumerate(names) for b in names[i + 1:] if b in similar_names(a, [b])]
-
-
-def fetch_known_names() -> list[str]:
-    """DB에 기록이 있는 사람 이름 (라벨러, 포즈 작성자, 포즈 검색 평가자). 없는 테이블은 건너뛴다."""
-    names: set[str] = set()
-    sources = [("labels", "labeler", None), ("poses", "annotator, source", "annotator"), ("pose_evals", "evaluator", None)]
-    for table, cols, col in sources:
-        try:
-            rows = db.call(db.fetch_all, table, cols)
-        except db.DBError:
-            continue
-        col = col or cols
-        names |= {r[col] for r in rows if r.get(col) and r.get("source") != P.MODEL}
-    return sorted(n for n in names if not n.startswith("__"))
 
 
 def member_table(labels: pd.DataFrame, poses: pd.DataFrame | None, evals: pd.DataFrame | None,

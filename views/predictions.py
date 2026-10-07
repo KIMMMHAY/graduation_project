@@ -3,7 +3,7 @@ import streamlit as st
 from core.dataset import load_metadata
 from core.tagging import NEGATIVE, POSITIVE
 from methods.predicted_tags import load_predictions, predictions_source
-from views.common import (current_user, image_card, load_labels_or_stop, load_tags_or_stop, paginate,
+from views.common import (cannot_save_notice, current_user, image_card, load_labels_or_stop, load_tags_or_stop, paginate,
                           save_label_safely, tag_label)
 
 PER_PAGE = 12
@@ -20,7 +20,7 @@ if not tags:
 
 labeler = current_user()
 if not labeler:
-    st.warning("왼쪽 사이드바에 **내 이름**을 입력해야 맞음/틀림을 저장할 수 있어요.")
+    cannot_save_notice("맞음/틀림 저장")
 
 tag = st.selectbox("태그", tags, format_func=tag_label, key="pred_tag")
 c1, c2, c3 = st.columns([2, 2, 1])

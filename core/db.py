@@ -14,6 +14,23 @@ class DBError(RuntimeError):
     pass
 
 
+# 쓰기 허용 여부 확인 함수. 웹앱(app.py)이 매 실행마다 "방문자면 DBError"를 거는 함수를 넣는다.
+# 함수는 호출될 때 그 사용자 세션의 상태를 읽으므로 서버 하나에 여러 사람이 접속해도 각자 판단된다.
+# 웹앱 밖(training.py 등 스크립트, 테스트)에서는 None → 제한 없음.
+_write_guard = None
+
+
+def set_write_guard(fn) -> None:
+    global _write_guard
+    _write_guard = fn
+
+
+def check_write() -> None:
+    """DB에 쓰기 전에 부른다. 허용되지 않으면 DBError."""
+    if _write_guard is not None:
+        _write_guard()
+
+
 def _load_env() -> None:
     for f in ENV_FILES:
         if f.exists():
@@ -40,6 +57,8 @@ def friendly_error(e: Exception) -> str:
     """Supabase/PostgREST 오류를 팀원이 이해할 수 있는 한국어로."""
     code = getattr(e, "code", None) or ""
     msg = getattr(e, "message", None) or str(e)
+    if code == "PGRST202" or "Could not find the function" in msg:
+        return "DB에 필요한 함수가 없습니다. supabase/schema.sql을 Supabase SQL Editor에서 먼저 실행해 주세요."
     if code == "PGRST205" or "Could not find the table" in msg:
         return "DB에 테이블이 없습니다. supabase/schema.sql을 Supabase SQL Editor에서 먼저 실행해 주세요."
     if code == "23503":
@@ -76,6 +95,7 @@ def fetch_all(table: str, columns: str = "*") -> list[dict]:
 
 def upsert(table: str, rows: list[dict], on_conflict: str, chunk: int = 500, ignore_duplicates: bool = False) -> None:
     """ignore_duplicates=True면 이미 있는 행은 건드리지 않고 새 행만 넣는다."""
+    check_write()
     for i in range(0, len(rows), chunk):
         get_client().table(table).upsert(rows[i:i + chunk], on_conflict=on_conflict, returning="minimal",
                                          ignore_duplicates=ignore_duplicates).execute()

@@ -122,7 +122,7 @@ def render_results(df: pd.DataFrame, res: dict, me: str, cols: int = 4) -> None:
         except DBError as e:
             st.warning(f"평가 기록을 불러오지 못했습니다. {e}")
     elif hits:
-        st.caption("사이드바에 **내 이름**을 입력하면 비슷함/다름 평가를 저장할 수 있어요.")
+        st.caption("비슷함/다름 평가는 팀원으로 입장해야 저장할 수 있어요.")
 
     def evaluate(rank: int, hit: dict, verdict: str) -> None:
         try:

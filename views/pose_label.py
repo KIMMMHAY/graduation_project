@@ -12,7 +12,7 @@ from core.dataset import ON_CLOUD, load_metadata
 from core.db import DBError
 from core.pose_models import DEFAULT_MODEL, MODELS
 from core.pose_predict import predict_and_save
-from views.common import current_user
+from views.common import cannot_save_notice, current_user, is_visitor
 from views.pose_common import GUIDE, aspects_of, load_poses_or_stop
 
 POS = "pose_pos"            # 남은 목록에서 현재 위치
@@ -38,7 +38,7 @@ st.info(GUIDE)
 df = load_metadata()
 me = current_user()
 if not me:
-    st.warning("왼쪽 사이드바에 **내 이름**을 입력해야 저장할 수 있어요.")
+    cannot_save_notice("포즈 저장")
 
 poses = load_poses_or_stop()
 prog = store.progress(poses)
@@ -57,8 +57,10 @@ if msg := st.session_state.pop(MSG, None):
     (st.success if msg[0] == "ok" else st.error)(msg[1])
 
 c1, c2 = st.columns([3, 2])
-# 서버에서는 AI 모델을 돌리지 않는다 (메모리 부족으로 앱 전체가 멈출 수 있음). PC에서 미리 계산한 결과만 쓴다
-ai_modes = [m for m in AI_MODES if not (ON_CLOUD and m == AI_LIVE)]
+# 서버에서는 AI 모델을 돌리지 않는다 (메모리 부족으로 앱 전체가 멈출 수 있음). PC에서 미리 계산한 결과만 쓴다.
+# 방문자도 바로 추정하지 않는다 (추정 결과를 DB에 저장하는 동작이라서)
+no_live = ON_CLOUD or is_visitor()
+ai_modes = [m for m in AI_MODES if not (no_live and m == AI_LIVE)]
 if st.session_state.get("pose_ai_mode") not in ai_modes:
     st.session_state.pop("pose_ai_mode", None)
 ai_mode = c1.radio("🤖 AI 제안 핀", ai_modes, format_func=AI_MODES.get, horizontal=True, key="pose_ai_mode",
@@ -106,7 +108,7 @@ if start == "model" or (start == "auto" and mine is None and ai_mode != AI_OFF):
             model_kps, model_facing = P.validate_keypoints(r["keypoints"]), r["facing"]
         else:
             model_note = "AI가 이 그림에서 인물을 찾지 못해 표준 자세로 시작합니다."
-    elif not ON_CLOUD and (ai_mode == AI_LIVE or start == "model"):
+    elif not no_live and (ai_mode == AI_LIVE or start == "model"):
         try:
             with st.spinner("AI가 포즈를 추정하는 중... (3초 정도)"):
                 pred = predict_and_save(get_model(), image_id, row["img_path"])
@@ -116,7 +118,7 @@ if start == "model" or (start == "auto" and mine is None and ai_mode != AI_OFF):
                 model_kps, model_facing = pred.keypoints, pred.facing
         except Exception as e:  # 모델·DB 문제가 있어도 라벨링은 계속할 수 있어야 한다
             model_note = f"AI 추정에 실패해 표준 자세로 시작합니다. ({type(e).__name__}: {e})"
-    elif ON_CLOUD:
+    elif no_live:
         model_note = ("이 이미지는 아직 AI 추정이 없어 표준 자세로 시작합니다. "
                       "PC에서 `python predict_poses.py`로 미리 계산하면 서버에도 AI 제안 핀이 나옵니다.")
     else:

@@ -2,6 +2,7 @@
 
 - DB에 poses/pose_evals 테이블이 없으면 건너뛴다.
 - 작성자 이름 `__test__`로만 기록하고, 끝나면 그 행만 지운다 (팀 데이터는 건드리지 않음).
+- 입장 화면은 임시 팀원(TEST_EMAIL → `__test__`)으로 통과한다. members에 그 행만 넣었다가 끝나면 지운다 (secret 키 필요).
 실행: python -m pytest tests/e2e/test_pose_app.py -s
 """
 import random
@@ -23,11 +24,12 @@ from views.pose_common import aspects_of  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 TEST_USER = "__test__"
+TEST_EMAIL = "__test__@test.invalid"
 
 
 def _tables_ready() -> bool:
     try:
-        for t in ("poses", "pose_evals"):
+        for t in ("poses", "pose_evals", "members"):
             db.get_client().table(t).select("*").limit(1).execute()
         return True
     except Exception:
@@ -35,17 +37,19 @@ def _tables_ready() -> bool:
 
 
 pytestmark = pytest.mark.skipif(not (db.is_configured() and _tables_ready()),
-                                reason="Supabase poses/pose_evals 테이블이 없습니다 (schema.sql 실행 필요)")
+                                reason="Supabase poses/pose_evals/members 테이블이 없습니다 (schema.sql 실행 필요)")
 
 
 def cleanup():
     db.get_client().table("pose_evals").delete().eq("evaluator", TEST_USER).execute()
     db.get_client().table("poses").delete().eq("annotator", TEST_USER).execute()
+    db.get_client().table("members").delete().eq("email", TEST_EMAIL).execute()
 
 
 @pytest.fixture(scope="module")
 def server(tmp_path_factory):
     cleanup()
+    db.get_client().table("members").insert({"email": TEST_EMAIL, "name": TEST_USER}).execute()
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
@@ -82,12 +86,17 @@ def browser():
 def open_page(browser, url, width=1400):
     page = browser.new_page(viewport={"width": width, "height": 1000})
     page.goto(url)
-    name = page.get_by_role("textbox", name="내 이름")
-    name.wait_for(timeout=60000)
-    name.fill(TEST_USER)
-    name.press("Enter")
-    page.wait_for_timeout(800)
+    login(page)
     return page
+
+
+def login(page):
+    """입장 화면에서 임시 팀원 이메일로 들어간다. 주소를 새로 열(goto) 때마다 세션이 새로 생기므로 다시 불러야 한다."""
+    email = page.get_by_role("textbox", name="팀원 이메일")
+    email.wait_for(timeout=60000)
+    email.fill(TEST_EMAIL)
+    page.get_by_role("button", name="팀원으로 입장").click()
+    page.get_by_text(f"{TEST_USER} 님").wait_for(timeout=60000)
 
 
 def wait_editor(page):

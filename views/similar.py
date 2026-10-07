@@ -8,7 +8,7 @@ from core.dataset import load_metadata, thumbnail
 from core.db import DBError
 from core.evaluation import DIFFERENT, SIMILAR, TABLE, VERDICT_LABEL, eval_path, load_evals, save_verdict
 from methods import ImageSearch, methods_of
-from views.common import PENDING_QUERY, image_card, pick_method
+from views.common import PENDING_QUERY, cannot_save_notice, image_card, pick_method
 
 TOP_K = 12
 COLS = 4
@@ -75,7 +75,7 @@ tab_data, tab_upload, tab_stats = st.tabs(["데이터셋 이미지로 검색", "
 
 with tab_data:
     if not evaluator:
-        st.warning("왼쪽 사이드바에 **평가자 이름**을 입력해야 비슷함/다름 평가를 저장할 수 있어요.")
+        cannot_save_notice("비슷함/다름 평가 저장")
     c1, c2 = st.columns([4, 1], vertical_alignment="bottom")
     c1.selectbox("검색할 이미지", range(len(df)), key=QUERY_KEY,
                  format_func=lambda i: f"{df['id'].iat[i]}  —  {' '.join(df['tag_list'].iat[i][:6])}")

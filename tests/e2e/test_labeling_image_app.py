@@ -14,7 +14,7 @@ import pytest
 from core import db
 from core.dataset import read_metadata
 from core.tagging import EMB_IDS_CSV, EMB_NPY, add_tag, invalidate_tags_cache, save_labels
-from tests.e2e.test_pose_app import TEST_USER, browser, open_page, pytestmark, server  # noqa: F401
+from tests.e2e.test_pose_app import TEST_USER, browser, login, open_page, pytestmark, server  # noqa: F401
 
 TEST_PREFIX_KEY, TEST_PREFIX_NAME = "zz_test_", "[테스트]"
 TEST_TAGS = [("zz_test_a", "[테스트] A", "solo"), ("zz_test_b", "[테스트] B", None),
@@ -156,8 +156,7 @@ def test_image_labeling_flow(server, browser, test_tags):
     page.get_by_role("button", name="🔄 새로고침").click()  # 서버의 태그 캐시(30초)를 바로 갱신
     page.wait_for_timeout(1000)
     page.goto(server + "/labeling")
-    page.get_by_role("textbox", name="내 이름").fill(TEST_USER)
-    page.get_by_role("textbox", name="내 이름").press("Enter")
+    login(page)
     box(page, "[테스트] E").wait_for(timeout=60000)
     page.get_by_text("새 태그만 남은 이미지 우선").click()
     page.wait_for_timeout(1500)

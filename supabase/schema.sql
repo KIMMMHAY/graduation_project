@@ -198,3 +198,31 @@ begin
     create policy search_evals_update on public.search_evals for update to anon, authenticated using (true) with check (true);
   end if;
 end $$;
+
+-- =====================================================================
+-- 팀원 명단 (입장 화면의 이메일 확인용). 이 블록만 따로 실행해도 되고, 여러 번 실행해도 안전하다.
+-- 앱(팀원 키)은 명단을 직접 읽을 수 없고, member_name(이메일) 함수로 "이 이메일이 누구인지"만 물어본다.
+-- 이름은 기존 라벨·포즈 기록의 작성자 이름과 똑같이 넣는다 (다르면 다른 사람으로 집계됨).
+--
+-- 팀원 추가·수정 예시 (SQL Editor에서 실행, 이메일은 소문자로):
+--   insert into public.members (email, name) values ('someone@example.com', '김하영')
+--   on conflict (email) do update set name = excluded.name, active = true;
+-- 입장 막기: update public.members set active = false where email = 'someone@example.com';
+-- =====================================================================
+create table if not exists public.members (
+  email      text primary key check (email = lower(trim(email)) and position('@' in email) > 1),
+  name       text not null check (length(trim(name)) > 0),
+  active     boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+grant select, insert, update, delete on public.members to service_role;
+revoke all on public.members from anon, authenticated;
+alter table public.members enable row level security;  -- 정책을 만들지 않는다 → 팀원 키로는 명단을 읽을 수 없음
+
+create or replace function public.member_name(p_email text) returns text
+language sql stable security definer set search_path = public as $$
+  select name from public.members where email = lower(trim(p_email)) and active limit 1
+$$;
+revoke all on function public.member_name(text) from public;
+grant execute on function public.member_name(text) to anon, authenticated, service_role;

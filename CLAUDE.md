@@ -19,6 +19,7 @@ streamlit run app.py
 - 테스트: `python -m pytest tests`
   - `tests/test_pose.py`: 매칭 단위 테스트 (DB·브라우저 불필요)
   - `tests/test_team.py`: 팀 현황 집계·비슷한 이름 감지 단위 테스트
+  - `tests/test_auth.py`: 팀원 이메일 확인·방문자 쓰기 차단 (가짜 DB, 실제 DB 불필요)
   - `tests/test_search_evals.py`: 유사 검색 평가 저장·읽기·예전 CSV 변환 (가짜 DB 클라이언트, 실제 DB 불필요)
   - `st.page_link`는 `st.navigation` 안에서만 동작한다. 페이지를 `AppTest.from_file`로 단독 실행해 볼 때는 `st.page_link`를 대체해 둔다
   - `tests/e2e/test_pin_editor.py`: 핀 편집기를 Chromium에서 직접 검증 (Streamlit·DB 불필요)
@@ -31,8 +32,10 @@ streamlit run app.py
 
 | 경로 | 역할 |
 | --- | --- |
-| `app.py` | `st.navigation` 진입점, 사이드바 "내 이름"(`st.session_state["evaluator"]`, 처음 보는 이름이면 기존 이름 안내). `.env`와 로컬 데이터가 모두 없으면 설치 안내만 보여준다 |
-| `core/team.py` | 팀 활동 집계(팀원별 작업량, 비슷한 이름 감지, 마지막 학습 이후 라벨 수) — 순수 pandas. `views/team.py`(팀 현황)와 사이드바가 쓴다 |
+| `app.py` | `st.navigation` 진입점. 입장 전에는 입장 화면(`views/auth.py`)만 보여준다. 매 실행마다 `db.set_write_guard(auth.write_guard)`. `.env`와 로컬 데이터가 모두 없으면 설치 안내만 보여준다 |
+| `views/auth.py` | 입장 화면(SPECTRUM, 팀원 이메일 / "방문자이신가요? 입장하기"), 사이드바 로그인 표시·로그아웃. 팀원이면 `st.session_state["evaluator"]` = 명단의 이름(고정), 방문자면 빈 값 |
+| `core/members.py` | 팀원 확인: DB 함수 `member_name(이메일)` 호출. 앱은 명단 전체를 읽지 못한다 |
+| `core/team.py` | 팀 활동 집계(팀원별 작업량, 비슷한 이름 감지, 마지막 학습 이후 라벨 수) — 순수 pandas. `views/team.py`(팀 현황)가 쓴다 |
 | `views/` | 페이지 스크립트. 공통 UI는 `views/common.py` |
 | `methods/` | 검색 방식 모듈. `SearchMethod` + 기능 믹스인(`ImageSearch`/`PairFinder`/`TagSource`), `METHOD_CLASSES`에 등록하면 해당 페이지에 자동 노출 |
 | `core/dataset.py` | `metadata.csv` + `images/` 로딩(`read_metadata`는 순수 함수, `load_metadata`는 캐시 버전), 썸네일, `local_image`, 배포 서버 여부 `ON_CLOUD` |
@@ -70,6 +73,7 @@ streamlit run app.py
 - Streamlit Cloud는 push한 파일을 받아도 서버를 재시작하지 않을 수 있다(예전 모듈이 메모리에 남아 ImportError). `app.py`의 `_reload_changed_code()`가 코드 파일 수정 시각이 바뀌면 프로젝트 모듈(`PROJECT_MODULES`)을 버리고 다시 불러온다. 새 최상위 패키지를 만들면 `PROJECT_MODULES`에 추가한다.
 - 서버(로컬 `metadata.csv` 없음)에서는 `img_path`가 이미지 URL이다. 파일로 열어야 하는 곳(PIL·OpenCV·CLIP)은 반드시 `core.dataset.local_image(img_path)`를 거친다(내려받아 `cache/remote/`에 캐시). `st.image`는 URL을 그대로 받으므로 필요 없다.
 - 배포 서버(`core.dataset.ON_CLOUD`, 코드가 `/mount/src/`에서 실행됨)는 메모리가 작다. 학습·AI 포즈 추정처럼 무거운 작업은 서버에서 버튼을 막고 `CLOUD_HEAVY_NOTICE`로 PC 실행을 안내한다. 새로 무거운 기능을 만들면 같은 방식으로 막는다. 시험할 때는 환경 변수 `DRAWING_REF_CLOUD=1`/`0`.
+- 방문자는 보기 전용이다. 화면은 저장 버튼을 `current_user()`가 비었을 때 꺼서 막고(`views.common.cannot_save_notice`로 안내), DB 쪽은 `db.upsert`가 `db.check_write()`로 한 번 더 막는다. `db.upsert`를 거치지 않고 직접 쓰는 코드(`client.table().insert/update/delete`)는 반드시 먼저 `db.check_write()`를 부른다. 이름과 무관한 쓰기 버튼(태그 관리, 학습 실행 등)은 `is_visitor()`로 끈다.
 - 서버의 파일(`drawing_ref_test/` 아래)은 재시작 때 지워진다. 팀이 만든 데이터는 파일이 아니라 DB에 저장한다(캐시만 파일로).
 - 좌표는 이미지 크기에 대한 0~1 비율로 저장하고, 각도 계산 전에는 반드시 가로세로 비율을 보정한다.
 - 포즈의 좌우는 **캐릭터 기준**(캐릭터의 왼팔 = `l_`). 화면에 안내 문구를 항상 표시한다.
@@ -84,12 +88,14 @@ streamlit run app.py
 - 학습을 실행하는 테스트는 `training`의 결과 경로(MODELS_DIR, REPORT_CSV, PRED_CSV, 임베딩 캐시)를 임시 폴더로 바꿔서 이 PC의 결과 파일을 덮어쓰지 않는다.
 - `poses`의 `source='model'` 행(annotator = 모델 이름: `dwpose`, `mediapipe-heavy`)은 모델 결과다. 사람 데이터와 섞어 지우지 말 것. 사람 라벨은 `manual`/`model_corrected`.
 - 테스트는 실제 팀 데이터를 건드리지 않는다. DB에 쓰는 테스트는 작성자/라벨러 이름 `__test__`를 쓰고 끝나면 그 행만 지운다.
+- 브라우저 E2E는 `members`에 임시 팀원(`__test__@test.invalid` → `__test__`)을 넣어 입장 화면을 통과하고 끝나면 그 행만 지운다(`tests/e2e/test_pose_app.py`의 `login`). `page.goto`로 주소를 새로 열면 세션이 새로 생기므로 다시 `login`한다.
+- `members`의 이메일은 팀원 개인정보다. 출력·로그·커밋에 넣지 않는다(저장소가 공개).
 - DB의 `labels`·`poses`·`pose_evals`·`search_evals`(예전 `eval_*.csv`)는 팀이 직접 만든 데이터다. 덮어쓰기·삭제 전에 반드시 확인한다.
 - secret 키(`service_role`)는 RLS를 무시한다. 팀원에게는 publishable 키를 나눠준다.
 
 ## DB (Supabase)
 
-- 테이블: `images`, `tags`, `labels`, `predictions`, `poses`, `pose_evals`, `search_evals`
+- 테이블: `images`, `tags`, `labels`, `predictions`, `poses`, `pose_evals`, `search_evals`, `members`(팀원 명단 — 팀원 키로는 읽기 불가, 함수 `member_name`으로만 확인)
 - 스키마 변경 시 `supabase/schema.sql`에 추가하고, 사용자가 SQL Editor에서 실행해야 한다(API 키로는 DDL 불가).
 - 새 테이블에는 GRANT(이 프로젝트는 자동 부여 안 됨)와 RLS 정책을 함께 추가한다.
 

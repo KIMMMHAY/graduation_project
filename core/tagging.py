@@ -93,6 +93,7 @@ def add_tag(key: str, name: str, group: str, definition: str, booru_hint: str | 
     existing = load_tags(include_inactive=True)
     if any(t.key == key for t in existing):
         raise TagError(f"key '{key}'는 이미 있습니다. (사용 안 함 태그도 포함)")
+    db.check_write()
     row = {"key": key, "name": name, "tag_group": group, "definition": definition,
            "booru_hint": _clean_hint(booru_hint), "active": True, "sort_order": len(existing)}
     _db_call(lambda: db.get_client().table("tags").insert(row, returning="minimal").execute())
@@ -103,18 +104,21 @@ def update_tag(key: str, name: str, definition: str) -> None:
     name = name.strip()
     if not name:
         raise TagError("표시 이름은 비워 둘 수 없습니다.")
+    db.check_write()
     _db_call(lambda: db.get_client().table("tags")
              .update({"name": name, "definition": definition.strip(), "updated_at": _now()}).eq("key", key).execute())
     invalidate_tags_cache()
 
 
 def set_tag_active(key: str, active: bool) -> None:
+    db.check_write()
     _db_call(lambda: db.get_client().table("tags").update({"active": active, "updated_at": _now()}).eq("key", key).execute())
     invalidate_tags_cache()
 
 
 def delete_tag(key: str) -> None:
     """라벨이 하나도 없는 태그만 삭제할 수 있다 (DB 정책과 외래키로도 막혀 있음)."""
+    db.check_write()
     n = _db_call(lambda: db.get_client().table("labels").select("id", count="exact").eq("tag_key", key).limit(1).execute()).count
     if n:
         raise TagError(f"라벨이 {n}건 붙어 있어 삭제할 수 없습니다. '사용 안 함'으로 바꿔 주세요.")
@@ -148,6 +152,7 @@ def save_labels(image_id: str, values: dict[str, int], labeler: str) -> None:
         return
     if not labeler.strip():
         raise TagError("이름이 비어 있습니다.")
+    db.check_write()
     now = _now()
     rows = [{"image_id": str(image_id), "tag_key": key, "value": int(v), "labeler": labeler, "updated_at": now}
             for key, v in values.items()]

@@ -5,13 +5,16 @@ from core.dataset import load_metadata
 from core.db import DBError
 from core.tagging import (NEGATIVE, POSITIVE, TagError, add_tag, consolidate, delete_tag, invalidate_tags_cache,
                           set_tag_active, update_tag)
-from views.common import load_labels_or_stop, load_tags_or_stop
+from views.common import cannot_save_notice, is_visitor, load_labels_or_stop, load_tags_or_stop
 
 MSG = "tags_admin_msg"
 NEW_FIELDS = {"new_key": "", "new_name": "", "new_group": None, "new_definition": "", "new_hint": ""}
 
 st.title("🗂️ 태그 관리")
 st.caption("팀 태그는 Supabase에 저장되어 모든 팀원이 같은 목록을 씁니다. 다른 팀원이 바꾼 내용은 최대 30초 뒤에 보입니다.")
+read_only = is_visitor()
+if read_only:
+    cannot_save_notice("태그 추가·수정·삭제")
 
 
 def run(action, *args, success: str, on_success=None) -> None:
@@ -84,22 +87,22 @@ if tags:
         st.text_input("표시 이름", tag.name, key=f"edit_name_{key}")
         st.text_area("정의 (라벨링 기준)", tag.definition, key=f"edit_def_{key}")
         st.form_submit_button(
-            "저장", type="primary",
+            "저장", type="primary", disabled=read_only,
             on_click=lambda: run(update_tag, key, st.session_state[f"edit_name_{key}"],
                                  st.session_state[f"edit_def_{key}"], success=f"'{key}' 태그를 저장했습니다."))
 
     used = int(n_labels.get(key, 0))
     if not tag.active:
-        st.button("▶️ 다시 사용", on_click=run, args=(set_tag_active, key, True),
+        st.button("▶️ 다시 사용", disabled=read_only, on_click=run, args=(set_tag_active, key, True),
                   kwargs={"success": f"'{tag.name}' 태그를 다시 사용합니다."})
     elif used:
         st.caption(f"라벨이 {used}건 있어 삭제할 수 없습니다. 사용 안 함으로 바꾸면 라벨링·학습·예측 화면에서 숨겨지고, 라벨은 보존됩니다.")
-        st.button("⏸️ 사용 안 함", on_click=run, args=(set_tag_active, key, False),
+        st.button("⏸️ 사용 안 함", disabled=read_only, on_click=run, args=(set_tag_active, key, False),
                   kwargs={"success": f"'{tag.name}' 태그를 사용 안 함으로 바꿨습니다."})
     else:
         st.caption("아직 라벨이 없는 태그라 삭제할 수 있습니다.")
         sure = st.checkbox(f"'{tag.name}' 태그를 삭제합니다 (되돌릴 수 없음)", key=f"del_ok_{key}")
-        st.button("🗑️ 삭제", disabled=not sure, on_click=run, args=(delete_tag, key),
+        st.button("🗑️ 삭제", disabled=not sure or read_only, on_click=run, args=(delete_tag, key),
                   kwargs={"success": f"'{tag.name}' 태그를 삭제했습니다."})
 
 # ---------- 추가 ----------
@@ -130,4 +133,4 @@ with st.form("add_tag"):
                  placeholder="예: 카메라가 인물의 허리 아래에서 올려다보는 구도")
     st.text_input("대응되는 Safebooru 태그 (선택)", key="new_hint", placeholder="예: from_below",
                   help="입력하면 라벨링 페이지에서 이 태그가 붙은 이미지를 먼저 보여줄 수 있어 양성 예시를 빨리 모읍니다.")
-    st.form_submit_button("추가", type="primary", on_click=submit_new)
+    st.form_submit_button("추가", type="primary", disabled=read_only, on_click=submit_new)

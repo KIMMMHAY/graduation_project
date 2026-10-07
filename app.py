@@ -31,7 +31,13 @@ def _reload_changed_code() -> None:
 
 
 _reload_changed_code()
-st.set_page_config(page_title="드로잉 레퍼런스 검증", page_icon="🎨", layout="wide")
+from views import auth  # noqa: E402  (예전 모듈을 버린 뒤에 불러와야 새 코드가 쓰인다)
+
+st.set_page_config(page_title="SPECTRUM · 드로잉 레퍼런스 검증", page_icon="🎨", layout="wide",
+                   initial_sidebar_state="auto" if auth.role() else "collapsed")
+
+from core.db import is_configured, set_write_guard  # noqa: E402
+set_write_guard(auth.write_guard)  # 방문자 세션은 DB 쓰기를 막는다 (매 실행마다: 모듈을 다시 불러오면 초기화되므로)
 
 pages = {
     "팀": [
@@ -55,15 +61,6 @@ pages = {
         st.Page("views/pose_accuracy.py", title="포즈 정확도", icon="📏"),
     ],
 }
-nav = st.navigation(pages)
-
-with st.sidebar:
-    st.text_input("내 이름", key="evaluator", placeholder="예: 김하영",
-                  help="유사 검색 평가와 라벨링을 저장할 때 누가 했는지 기록합니다.")
-    from core.db import is_configured
-    st.caption("태그·라벨 저장소: **Supabase**" if is_configured() else ":red[Supabase 접속 정보 없음 — .env 확인]")
-    from views.common import name_check
-    name_check()
 
 from core.dataset import META_CSV  # noqa: E402
 if not is_configured() and not META_CSV.exists():  # 이미지 목록을 읽을 곳이 없으면 모든 페이지가 오류로 멈춘다
@@ -73,5 +70,15 @@ if not is_configured() and not META_CSV.exists():  # 이미지 목록을 읽을 
              "3. 터미널에서 `Ctrl+C`로 앱을 끄고 `python -m streamlit run app.py`로 다시 켭니다\n\n"
              "자세한 안내는 `README.md`에 있습니다.")
     st.stop()
+
+if not auth.role():
+    st.navigation(pages, position="hidden")  # 주소의 페이지 경로(예: /pose_label?image=...)는 입장 뒤에도 유지된다
+    auth.render_gate()
+    st.stop()
+
+nav = st.navigation(pages)
+with st.sidebar:
+    auth.sidebar()
+    st.caption("태그·라벨 저장소: **Supabase**" if is_configured() else ":red[Supabase 접속 정보 없음 — .env 확인]")
 
 nav.run()
