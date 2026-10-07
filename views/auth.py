@@ -21,7 +21,7 @@ _STYLE = """
 <style>
 /* Streamlit 기본 글꼴 크기보다 우선하도록 div + !important */
 div.spectrum-title { text-align: center; font-size: clamp(2.8rem, 11vw, 4.5rem) !important; font-weight: 800 !important;
-                     letter-spacing: 0.12em; line-height: 1.1; margin: 0; padding: 0; }
+                     letter-spacing: -0.025em; line-height: 1.1; margin: 0; padding: 0; }
 div.spectrum-sub { text-align: center; opacity: 0.65; margin: 0.6rem 0 2rem; }
 </style>
 """
