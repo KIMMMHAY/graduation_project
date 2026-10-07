@@ -101,7 +101,7 @@ def render_gate() -> None:
         with st.container(horizontal=True, horizontal_alignment="right", vertical_alignment="center"):
             st.markdown("방문자이신가요?", width="content")
             st.button("입장하기", key="auth_visitor", on_click=_enter_as_visitor)
-        st.caption("방문자는 모든 화면을 볼 수 있지만 저장·수정은 할 수 없습니다.")
+        st.caption("방문자는 모든 화면을 볼 수 있지만 저장·수정은 할 수 없습니다.", text_alignment="right")
 
 
 def sidebar() -> None:

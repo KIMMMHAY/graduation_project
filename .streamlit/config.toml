@@ -1,3 +1,12 @@
 [server]
 # static/ 폴더를 /app/static/ 경로로 제공한다 (3D 마네킹이 three.js를 오프라인으로 불러오기 위해)
 enableStaticServing = true
+
+[theme.light]
+# 서비스 Primary color (SPECTRUM). 주 버튼(CTA)·토글·슬라이더·체크박스·탭 표시 등 Streamlit 기본 빨강을 대신한다.
+# 오류·경고(st.error, F1 미달 표시 등)의 빨강은 상태 색이라 그대로 둔다.
+# [theme]에 바로 쓰면 다크 모드를 따르지 않으므로(항상 밝은 화면) 라이트·다크에 각각 넣는다.
+primaryColor = "#7022EF"
+
+[theme.dark]
+primaryColor = "#7022EF"

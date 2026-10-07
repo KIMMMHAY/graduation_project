@@ -60,6 +60,7 @@ streamlit run app.py
 
 ## 규칙
 
+- 서비스 Primary color는 `#7022EF`(SPECTRUM). `.streamlit/config.toml`의 `[theme.light]`·`[theme.dark]`에 둔다(`[theme]`에 바로 쓰면 다크 모드를 따르지 않음). 직접 색을 넣는 강조·CTA도 이 색을 쓰고, 오류·경고·나쁨을 뜻하는 빨강(상태 색)은 그대로 둔다. 설정 파일은 서버를 켤 때만 읽힌다.
 - **화면 문구는 모두 한국어.** 오류도 팀원이 이해할 수 있는 한국어로(`db.friendly_error` 참고).
 - CSV는 `utf-8-sig`로 쓰고 읽는다(엑셀 한글 깨짐 방지).
 - 페이지 간 공유 상태는 `st.session_state`, 위젯 키 이름은 페이지 접두사를 붙인다(`label_`, `pose_` 등).
