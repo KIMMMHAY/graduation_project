@@ -3,7 +3,7 @@ import streamlit as st
 
 from core import pose as P
 from core import pose_accuracy as A
-from core.dataset import load_metadata
+from core.dataset import CLOUD_HEAVY_NOTICE, ON_CLOUD, load_metadata
 from core.pose_models import DEFAULT_MODEL, MODELS, OCCLUDED_MIN_CONF, VISIBLE_MIN_CONF
 from core.pose_predict import run_batch
 from views.pose_common import aspects_of, load_poses_or_stop
@@ -30,11 +30,13 @@ st.dataframe(status.rename(columns={P.DONE: "인물 검출", P.SKIPPED: "검출 
 c1, c2 = st.columns([1, 3], vertical_alignment="bottom")
 limit = c1.number_input("이번에 처리할 장수", 1, len(df), min(50, len(df)), 10, key="pose_batch_limit")
 running = st.session_state.get(RUNNING, False)
-c2.button(f"{MODELS[DEFAULT_MODEL].label}로 미리 계산 (아직 없는 이미지만)", type="primary", disabled=running,
+c2.button(f"{MODELS[DEFAULT_MODEL].label}로 미리 계산 (아직 없는 이미지만)", type="primary", disabled=running or ON_CLOUD,
           on_click=lambda: st.session_state.update({RUNNING: True}))
 st.caption("1장에 약 3초. 페이지를 벗어나면 멈추지만, 다시 누르면 이어서 합니다. "
            "전체를 한 번에 하려면 터미널에서 `python predict_poses.py`를 실행하세요(약 25분).")
-if running:
+if ON_CLOUD:
+    st.info(CLOUD_HEAVY_NOTICE)
+if running and not ON_CLOUD:
     try:
         bar = st.progress(0.0, text="AI 모델 불러오는 중...")
 

@@ -160,3 +160,41 @@ begin
     end if;
   end loop;
 end $$;
+
+-- =====================================================================
+-- 이미지 유사 검색 평가 (비슷함/다름). 예전에는 각자 PC의 eval_{방식}.csv에 저장했다.
+-- 배포 서버는 재시작 때 파일이 지워지므로 DB로 옮긴다. 이 블록만 따로 실행해도 되고, 여러 번 실행해도 안전하다.
+-- 예전 CSV는 python migrate_to_supabase.py 로 올린다 (DB에 이미 있는 평가는 덮어쓰지 않음).
+-- =====================================================================
+create table if not exists public.search_evals (
+  id         bigint generated always as identity primary key,
+  method     text not null,                        -- 검색 방식 key (예: phash)
+  evaluator  text not null check (length(trim(evaluator)) > 0),
+  query_id   text not null references public.images(id) on delete cascade,
+  result_id  text not null references public.images(id) on delete cascade,
+  rank       int,
+  score      real,                                 -- 방식별 점수 (Phash는 해밍 거리)
+  verdict    text not null check (verdict in ('similar', 'different')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (method, evaluator, query_id, result_id)  -- 같은 사람이 다시 누르면 덮어쓰기
+);
+
+grant select, insert, update, delete on public.search_evals to service_role;
+grant select, insert, update         on public.search_evals to anon, authenticated;
+grant usage, select on all sequences in schema public to anon, authenticated, service_role;
+
+alter table public.search_evals enable row level security;
+
+do $$
+begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'search_evals' and policyname = 'search_evals_select') then
+    create policy search_evals_select on public.search_evals for select to anon, authenticated using (true);
+  end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'search_evals' and policyname = 'search_evals_insert') then
+    create policy search_evals_insert on public.search_evals for insert to anon, authenticated with check (true);
+  end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'search_evals' and policyname = 'search_evals_update') then
+    create policy search_evals_update on public.search_evals for update to anon, authenticated using (true) with check (true);
+  end if;
+end $$;

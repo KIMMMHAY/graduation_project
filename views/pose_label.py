@@ -8,7 +8,7 @@ import streamlit as st
 from components.pose_editor import pin_editor
 from core import pose as P
 from core import poses as store
-from core.dataset import load_metadata
+from core.dataset import ON_CLOUD, load_metadata
 from core.db import DBError
 from core.pose_models import DEFAULT_MODEL, MODELS
 from core.pose_predict import predict_and_save
@@ -57,7 +57,11 @@ if msg := st.session_state.pop(MSG, None):
     (st.success if msg[0] == "ok" else st.error)(msg[1])
 
 c1, c2 = st.columns([3, 2])
-ai_mode = c1.radio("🤖 AI 제안 핀", list(AI_MODES), format_func=AI_MODES.get, horizontal=True, key="pose_ai_mode",
+# 서버에서는 AI 모델을 돌리지 않는다 (메모리 부족으로 앱 전체가 멈출 수 있음). PC에서 미리 계산한 결과만 쓴다
+ai_modes = [m for m in AI_MODES if not (ON_CLOUD and m == AI_LIVE)]
+if st.session_state.get("pose_ai_mode") not in ai_modes:
+    st.session_state.pop("pose_ai_mode", None)
+ai_mode = c1.radio("🤖 AI 제안 핀", ai_modes, format_func=AI_MODES.get, horizontal=True, key="pose_ai_mode",
                    help="AI(DWPose)가 추정한 위치에 핀을 미리 놓습니다. 틀린 핀만 고치면 됩니다.\n\n"
                         "'바로 추정'으로 만든 결과도 저장되어 다음부터는 기다리지 않습니다.")
 reopen = c2.toggle("완료·건너뛴 이미지도 보기 (다시 열어 수정)", key="pose_reopen")
@@ -102,7 +106,7 @@ if start == "model" or (start == "auto" and mine is None and ai_mode != AI_OFF):
             model_kps, model_facing = P.validate_keypoints(r["keypoints"]), r["facing"]
         else:
             model_note = "AI가 이 그림에서 인물을 찾지 못해 표준 자세로 시작합니다."
-    elif ai_mode == AI_LIVE or start == "model":
+    elif not ON_CLOUD and (ai_mode == AI_LIVE or start == "model"):
         try:
             with st.spinner("AI가 포즈를 추정하는 중... (3초 정도)"):
                 pred = predict_and_save(get_model(), image_id, row["img_path"])
@@ -112,6 +116,9 @@ if start == "model" or (start == "auto" and mine is None and ai_mode != AI_OFF):
                 model_kps, model_facing = pred.keypoints, pred.facing
         except Exception as e:  # 모델·DB 문제가 있어도 라벨링은 계속할 수 있어야 한다
             model_note = f"AI 추정에 실패해 표준 자세로 시작합니다. ({type(e).__name__}: {e})"
+    elif ON_CLOUD:
+        model_note = ("이 이미지는 아직 AI 추정이 없어 표준 자세로 시작합니다. "
+                      "PC에서 `python predict_poses.py`로 미리 계산하면 서버에도 AI 제안 핀이 나옵니다.")
     else:
         model_note = "이 이미지는 아직 AI 추정이 없습니다. **포즈 정확도** 페이지에서 미리 계산하거나 '바로 추정'을 고르세요."
 

@@ -1,5 +1,6 @@
 """데이터셋(metadata.csv + images/) 로딩과 썸네일 관리."""
 import hashlib
+import os
 import urllib.request
 from pathlib import Path
 
@@ -9,6 +10,12 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "drawing_ref_test"
+# 배포 서버(Streamlit Community Cloud)인지. 그 서버는 코드를 항상 /mount/src/ 아래에서 실행한다.
+# 서버는 메모리가 작아 학습·AI 일괄 추정처럼 무거운 작업을 하면 앱 전체가 멈출 수 있으므로 화면에서 막는다.
+# 시험용으로 DRAWING_REF_CLOUD=1(서버처럼) / 0(PC처럼)을 주면 그 값을 따른다.
+ON_CLOUD = os.getenv("DRAWING_REF_CLOUD", "1" if str(ROOT).startswith("/mount/src/") else "0") == "1"
+CLOUD_HEAVY_NOTICE = ("배포 서버에서는 메모리가 부족해 앱 전체가 멈출 수 있어 이 작업을 막아 두었습니다. "
+                      "각자 PC에서 앱을 실행해 진행해 주세요. 결과는 DB에 저장되어 서버 화면에도 그대로 보입니다.")
 IMG_DIR = DATA_DIR / "images"
 META_CSV = DATA_DIR / "metadata.csv"
 CACHE_DIR = DATA_DIR / "cache"

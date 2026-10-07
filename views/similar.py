@@ -5,7 +5,8 @@ import streamlit as st
 from PIL import Image
 
 from core.dataset import load_metadata, thumbnail
-from core.evaluation import DIFFERENT, SIMILAR, VERDICT_LABEL, eval_path, load_evals, save_verdict
+from core.db import DBError
+from core.evaluation import DIFFERENT, SIMILAR, TABLE, VERDICT_LABEL, eval_path, load_evals, save_verdict
 from methods import ImageSearch, methods_of
 from views.common import PENDING_QUERY, image_card, pick_method
 
@@ -28,13 +29,25 @@ def pick_random():
     st.session_state[QUERY_KEY] = random.randrange(len(df))
 
 
+def save_verdict_safely(*args) -> None:
+    """버튼 on_click용. 저장 실패 시 앱을 멈추지 않고 화면 위에 안내를 띄운다."""
+    try:
+        save_verdict(*args)
+    except DBError as e:
+        st.error(f"평가를 저장하지 못했습니다. {e}")
+
+
 def show_hits(hits, query_id: str | None) -> None:
     """결과 그리드. query_id가 있으면 평가 버튼을 붙인다."""
     done = {}
     if query_id and evaluator:
-        ev = load_evals(method.key)
-        ev = ev[(ev["evaluator"] == evaluator) & (ev["query_id"] == query_id)]
-        done = dict(zip(ev["result_id"], ev["verdict"]))
+        try:
+            ev = load_evals(method.key)
+        except DBError as e:
+            st.warning(f"평가 기록을 불러오지 못했습니다. {e}")
+        else:
+            ev = ev[(ev["evaluator"] == evaluator) & (ev["query_id"] == query_id)]
+            done = dict(zip(ev["result_id"], ev["verdict"]))
 
     cols = st.columns(COLS)
     for rank, hit in enumerate(hits, start=1):
@@ -50,7 +63,7 @@ def show_hits(hits, query_id: str | None) -> None:
                     f"{icon} {VERDICT_LABEL[value]}", key=f"ev_{query_id}_{rid}_{value}",
                     type="primary" if verdict == value else "secondary",
                     disabled=not evaluator, width="stretch",
-                    on_click=save_verdict,
+                    on_click=save_verdict_safely,
                     args=(method.key, evaluator, query_id, rid, rank, hit.score, value),
                 )
     if query_id and evaluator:
@@ -93,8 +106,12 @@ with tab_upload:
             st.info(f"{method.name}은(는) 업로드 검색을 지원하지 않습니다.")
 
 with tab_stats:
-    ev = load_evals(method.key)
-    st.caption(f"저장 위치: `{eval_path(method.key)}`")
+    try:
+        ev = load_evals(method.key)
+    except DBError as e:
+        st.error(f"평가 기록을 불러오지 못했습니다. {e}")
+        st.stop()
+    st.caption(f"저장 위치: Supabase `{TABLE}` 테이블 (팀 전체 평가)")
     if ev.empty:
         st.info("아직 평가 기록이 없습니다.")
     else:

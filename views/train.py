@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 
 import training
+from core.dataset import CLOUD_HEAVY_NOTICE, ON_CLOUD
 from core.tagging import REPORT_CSV, consolidate
 from methods.predicted_tags import predictions_source, refresh_predictions
 from views.common import current_user, load_labels_or_stop, load_tags_or_stop
@@ -41,9 +42,12 @@ def start() -> None:
 
 
 running = st.session_state.get(RUNNING, False)
-st.button("학습 실행", type="primary", disabled=running, on_click=start)
+st.button("학습 실행", type="primary", disabled=running or ON_CLOUD, on_click=start)
+if ON_CLOUD:
+    st.info(f"{CLOUD_HEAVY_NOTICE}  \n"
+            "PC에서는 이 페이지의 **학습 실행** 또는 터미널에서 `python training.py --name 내이름`.")
 
-if running:
+if running and not ON_CLOUD:
     try:
         with st.status("학습 실행 중...", expanded=True) as box:
             bar = st.progress(0.0)
