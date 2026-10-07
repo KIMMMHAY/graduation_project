@@ -77,6 +77,11 @@ if not auth.role():
     st.stop()
 
 nav = st.navigation(pages)
+# SNB(사이드 메뉴) 글자를 Streamlit 기본 14px보다 1px 크게. <style>만 있는 st.html은 화면 자리를 차지하지 않는다
+st.html("""<style>
+[data-testid="stSidebarNavLink"] p, [data-testid="stNavSectionHeader"] { font-size: 15px; }
+[data-testid="stSidebarNavLink"] [data-testid="stIconEmoji"] { font-size: 15.4px; }
+</style>""")
 with st.sidebar:
     auth.sidebar()
     st.caption("태그·라벨 저장소: **Supabase**" if is_configured() else ":red[Supabase 접속 정보 없음 — .env 확인]")
